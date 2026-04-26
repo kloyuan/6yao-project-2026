@@ -1,589 +1,343 @@
-# 六爻网站 - Spec Design v0.1
+# 六爻网站 - Spec Design v1.1
 
-> **文档定位**：描述系统**如何构建**（技术实现方案、接口契约、数据模型、架构决策）。  
-> 上游依赖：[SPEC_REQUIREMENT.md](./SPEC_REQUIREMENT.md)（定义"做什么"）  
-> 下游产出：[SPEC_IMPLEMENTATION.md]（具体代码、配置、部署脚本）
+> 文档定位：描述系统如何构建（架构决策、模块职责、接口契约、数据模型）。  
+> 上游依赖：SPEC_REQUIREMENT.md（定义"做什么"）  
+> 下游产出：SPEC_IMPLEMENTATION（代码、配置、部署脚本）
+
+### 术语固定表
+
+| 中文 | 英文 / 字段名 |
+|------|--------------|
+| 本卦 | `base_hexagram` |
+| 变卦 | `changed_hexagram` |
+| 追问 | Follow-up（技术上下文用 `followup`） |
+| 起卦记录 | Divination |
+| 单爻记录 | DivinationLine |
+| 解读结果 | Interpretation |
+
+---
+
+## 目录
+
+1. [系统架构概览](#1-系统架构概览)
+   - 1.1 分层架构
+   - 1.2 模块职责边界
+2. [系统流程图](#2-系统流程图)
+   - 2.1 图 A — 端到端用户流程
+   - 2.2 图 B — 系统数据流
+   - 2.3 图 C — 解读服务流程
+3. [核心交互接口](#3-核心交互接口)
+   - 3.1 接口分类
+   - 3.2 关键接口设计决策
+4. [核心数据实体](#4-核心数据实体)
+   - 4.1 Divination
+   - 4.2 DivinationLine
+   - 4.3 Interpretation
+   - 4.4 FollowupConversation
+   - 4.5 FollowupMessage
+   - 4.6 Hexagram
+5. [关键设计决策](#5-关键设计决策)
+   - 5.1 Rule Engine 与 Interpretation 解耦
+   - 5.2 /result 与 /interpret 解耦
+   - 5.3 Follow-up 独立为对话能力
+   - 5.4 TemplateFallback 的适用边界
+   - 5.5 上下文锚定原则
+   - 5.6 MVP 的单一路径设计
+6. [MVP 范围与后续扩展](#6-mvp-范围与后续扩展)
+   - 6.1 MVP 范围
+   - 6.2 后续扩展方向
 
 ---
 
 ## 1. 系统架构概览
 
+### 1.1 分层架构
+
 ```
-用户浏览器
-    │
-    ▼
-前端 SPA (React / Next.js)
-    │  REST API (JSON)
-    ▼
-后端 API 服务 (FastAPI / Express)
-    ├── 规则引擎 (纯函数，无副作用)
-    │       └── 爻象映射 → 卦象生成 → 解读模板
-    ├── PostgreSQL  (持久化)
-    └── Redis       (卦象数据缓存)
+Frontend (Next.js)
+  ↓ REST/JSON
+FastAPI Backend
+  │
+  ├── DivinationService
+  │     └── RuleEngine              ← 确定性纯函数，无 IO
+  │           ├── CoinMapper
+  │           └── HexagramGen
+  │
+  ├── InterpretationService         ← AI 解读，不可用时返回错误（MVP）
+  │     └── (uses Shared Components)
+  │
+  ├── FollowupService               ← 追问对话，独立 Service
+  │     ├── ConversationManager     ← 维护对话历史、20 轮计数
+  │     └── (uses Shared Components)
+  │
+  ├── Shared Components
+  │     ├── ContextLoader
+  │     │     ├── loads HexagramContext   ← 供 InterpretationService 使用
+  │     │     └── loads ChatContext       ← 供 FollowupService 使用（卦象 + 历史对话）
+  │     ├── PromptBuilder
+  │     ├── SafetyCheck             ← v2 可插拔护栏层
+  │     └── LLMProvider
+  │           ├── ClaudeProvider    ← 主 provider
+  │           └── DeepSeekProvider  ← 备用 provider
+  │
+  └── Data Layer
+        └── Supabase PostgreSQL
 ```
 
-**核心路径**：`提问 → 起卦（×6次cast） → 服务端生成卦象 → 解读 → Follow-up 对话`
+> **注**：TemplateFallback、SafetyCheck 及解读模式（classical / modern / strategic / emotional）为 v2 功能，MVP 阶段 LLM 不可用时直接返回错误提示。
 
 ---
 
-## 2. 后端 API 设计
+### 1.2 模块职责边界
 
-### 2.1 端点列表
-
-| Method | Path | 功能 |
-|--------|------|------|
-| POST | `/api/divination/create` | 创建起卦记录 |
-| POST | `/api/divination/{id}/cast` | 记录一次抛币（×6） |
-| GET  | `/api/divination/{id}/result` | 获取完整解读 |
-| GET  | `/api/divinations/history` | 历史记录列表 |
-| GET  | `/api/hexagrams/{number}` | 卦象详情 |
-| GET  | `/api/rules/basic` | 六爻规则说明 |
-| POST | `/api/divination/{id}/followup` | Follow-up 追问 |
-
----
-
-### 2.2 端点详情
-
-#### POST `/api/divination/create`
-
-**请求体**:
-```json
-{
-  "question": "string (required)",
-  "category": "感情|事业|财运|学业|合作|健康|寻物|其他",
-  "timeframe": "近期|一个月内|三个月内|半年内|自定义",
-  "notes": "string (optional)",
-  "language": "zh-CN|zh-TW|en"
-}
-```
-
-**响应**:
-```json
-{
-  "divination_id": "uuid",
-  "question": "string",
-  "category": "string",
-  "created_at": "ISO8601",
-  "language": "string"
-}
-```
+| 模块 | 职责 | 不应做 |
+|------|------|-------|
+| RuleEngine | 硬币→爻象映射、卦象生成（确定性纯函数） | 任何解读、AI 调用、IO 操作 |
+| DivinationService | 编排起卦流程，调用 RuleEngine，持久化卦象数据 | 直接生成解读内容 |
+| InterpretationService | 生成白话解读；LLM 不可用时返回错误提示 | 修改卦象数据 |
+| FollowupService | 管理追问对话生命周期，委托 ConversationManager 维护历史和轮数限制 | 重新解读卦象、脱离卦象上下文回答 |
+| ConversationManager | 存取对话历史、计数并强制 20 轮上限 | 生成回复内容 |
+| ContextLoader | 按调用方加载 HexagramContext 或 ChatContext | 修改上下文数据 |
+| PromptBuilder | 将 context 组装为 LLM system prompt + user message | 决定解读策略 |
+| SafetyCheck | 过滤越界输入；校验输出是否锚定卦象上下文（v2） | 业务逻辑、数据持久化 |
+| LLMProvider | 封装 Claude / DeepSeek API，统一接口，处理 provider 切换 | 业务逻辑、上下文构建 |
+| Supabase PostgreSQL | 持久化所有业务数据 | 业务计算 |
 
 ---
 
-#### POST `/api/divination/{divination_id}/cast`
+## 2. 系统流程图
 
-前端传入三枚硬币面值，服务端自动推导爻类型（不依赖前端传 result）。
+### 2.1 图 A — 端到端用户流程
 
-**请求体**:
-```json
-{
-  "line_number": 1,
-  "coin_values": [3, 2, 3]
-}
+```mermaid
+flowchart TD
+    A([用户]) --> B[提问\n输入问题 + 分类]
+    B --> C[起卦\n6次抛币]
+    C --> D[查看盘面\n本卦 / 变卦 / 抛掷记录]
+    D --> E[生成解读]
+    E --> F{是否继续追问?}
+    F -- 否 --> I([结束])
+    F -- 是 --> G[发起追问并获得回复]
+    G --> H{达到20轮上限?}
+    H -- 否 --> F
+    H -- 是 --> J[追问结束]
 ```
 
-> `coin_values`：三枚硬币各自面值，正面=3，反面=2。
+### 2.2 图 B — 系统数据流
 
-**服务端推导规则**：
-- sum=6 → 老阴（动爻）
-- sum=7 → 少阳（静爻）
-- sum=8 → 少阴（静爻）
-- sum=9 → 老阳（动爻）
-
-**响应**:
-```json
-{
-  "divination_id": "uuid",
-  "current_line": 1,
-  "coin_sum": 8,
-  "line_result": "少阴",
-  "is_changing": false,
-  "lines_completed": 1
-}
+```mermaid
+flowchart LR
+    FE[Frontend] --> BE[FastAPI Backend]
+    subgraph BE [FastAPI Backend]
+        DS[DivinationService]
+        IS[InterpretationService]
+        FS[FollowupService]
+    end
+    subgraph Shared [Shared Components]
+        CL[ContextLoader]
+        PB[PromptBuilder]
+        LP[LLMProvider]
+    end
+    DS --> RE[RuleEngine]
+    IS --> Shared
+    FS --> Shared
+    LP -- 主 --> Claude
+    LP -- 备用 --> DeepSeek
+    DS & IS & FS --> DB[(Supabase)]
 ```
 
----
+### 2.3 图 C — 解读服务流程
 
-#### GET `/api/divination/{divination_id}/result`
-
-**响应**:
-```json
-{
-  "divination_id": "uuid",
-  "question": "string",
-  "category": "string",
-  "cast_records": [
-    {
-      "line_number": 1,
-      "coin_values": [3, 2, 3],
-      "coin_sum": 8,
-      "line_result": "少阴",
-      "is_changing": false
-    }
-  ],
-  "original_hexagram": {
-    "name": "乾",
-    "code": "111111",
-    "number": 1
-  },
-  "changing_lines": [1, 3],
-  "future_hexagram": {
-    "name": "坤",
-    "code": "000000",
-    "number": 2
-  },
-  "interpretation": {
-    "summary": "string (3-5句白话总结)",
-    "original_meaning": "string (本卦解读)",
-    "changing_analysis": "string (动爻解读)",
-    "future_trend": "string (变卦与趋势)",
-    "world_response_analysis": "string (世应关系)",
-    "category_specific_advice": "string (分类建议)",
-    "recommendations": ["建议1", "建议2", "建议3"]
-  },
-  "created_at": "ISO8601"
-}
+```mermaid
+flowchart TD
+    IN[解读请求\n卦象 + 问题 + 分类]
+    IN --> CL[ContextLoader\n加载卦象上下文]
+    CL --> PB[PromptBuilder\n组装 Prompt]
+    PB --> LP[LLMProvider\nClaude / DeepSeek]
+    LP -- 成功 --> OUT[解读输出]
+    LP -- 失败/超时 --> ERR[返回错误\n请稍后再试]
 ```
 
 ---
 
-#### GET `/api/divinations/history`
+## 3. 核心交互接口
 
-**查询参数**:
-- `limit`: 10-100 (default: 20)
-- `offset`: 0+
-- `category`: optional filter
+> 本节定义接口分类与设计意图，字段格式与请求 / 响应 Schema 见 SPEC_IMPLEMENTATION。
 
-**响应**:
-```json
-{
-  "total": "integer",
-  "items": [
-    {
-      "divination_id": "uuid",
-      "question": "string",
-      "category": "string",
-      "hexagram_name": "string",
-      "created_at": "ISO8601",
-      "summary": "string (前50字)"
-    }
-  ]
-}
-```
+### 3.1 接口分类
 
----
+| 分组 | 接口 | 说明 |
+|------|------|------|
+| 起卦流程 | `POST /divinations` | 创建起卦（含问题、分类） |
+| | `POST /divinations/{id}/lines` | 提交单次抛币结果（第 1-6 爻） |
+| | `GET /divinations/{id}/result` | 获取完整盘面（本卦、变卦、抛掷记录） |
+| 解读 | `POST /divinations/{id}/interpret` | 触发 AI 解读，返回白话解读内容 |
+| 追问 | `POST /divinations/{id}/followup` | 发起追问，返回 AI 回复 |
+| | `GET /divinations/{id}/followup` | 获取追问历史 |
+| 参考数据 | `GET /hexagrams/{id}` | 查询单卦基础信息 |
+| P1 | `GET /divinations` | 获取历史起卦列表（需登录） |
 
-#### GET `/api/hexagrams/{hexagram_number}`
+### 3.2 关键接口设计决策
 
-**响应**:
-```json
-{
-  "number": 1,
-  "name": "乾",
-  "upper_trigram": "乾",
-  "lower_trigram": "乾",
-  "traditional_meaning": "string",
-  "modern_interpretation": "string"
-}
-```
+1. **/result 与 /interpret 解耦**：盘面数据（本卦、变卦）由 `/result` 即时返回；AI 解读由 `/interpret` 单独触发，失败不影响盘面展示。
+
+2. **爻属性由服务端推导**：前端仅提交原始硬币面值，爻象类型（老阴 / 少阳等）、动爻标记均由后端 RuleEngine 计算，不由前端传入。
+
+3. **追问绑定卦象**：`/followup` 路由挂载在 `/divinations/{id}` 下，确保追问始终与特定卦象上下文绑定。
 
 ---
 
-#### GET `/api/rules/basic`
+## 4. 核心数据实体
 
-**响应**:
-```json
-{
-  "what_is_liuyao": "string",
-  "why_ask_question": "string",
-  "why_six_tosses": "string",
-  "hexagram_basics": "string",
-  "world_response": "string",
-  "six_relatives": "string",
-  "how_to_read_result": "string"
-}
-```
+> 本节描述各实体的语义与关键字段，建表 DDL 与索引设计见 SPEC_IMPLEMENTATION。
 
----
+### 4.1 Divination（起卦记录）
 
-#### POST `/api/divination/{divination_id}/followup`
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | UUID | 主键 |
+| question | text | 用户问题 |
+| category | enum | 感情 / 事业 / 财运 / 学业 / 合作 / 健康 / 寻物 / 其他 |
+| timeframe | text | 可选，时间范围 |
+| session_token | text | MVP 匿名标识；P1 替换为 user_id |
+| base_hexagram | int | 本卦编号（1-64） |
+| changed_hexagram | int | 变卦编号（1-64），无动爻时与本卦相同 |
+| changing_lines | int[] | 动爻位置列表（如 `[2, 5]`） |
+| created_at | timestamp | 创建时间 |
 
-**请求体**:
-```json
-{
-  "message": "string (required)",
-  "conversation_id": "uuid (optional)"
-}
-```
+### 4.2 DivinationLine（单爻记录）
 
-**响应**:
-```json
-{
-  "conversation_id": "uuid",
-  "divination_id": "uuid",
-  "reply": "string",
-  "messages": [
-    {
-      "role": "user|assistant",
-      "content": "string",
-      "created_at": "ISO8601"
-    }
-  ]
-}
-```
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | UUID | 主键 |
+| divination_id | UUID | 外键 |
+| line_number | int | 第几爻（1-6） |
+| coin_values | int[] | 三枚硬币面值 |
+| coin_sum | int | 总和（6 / 7 / 8 / 9） |
+| line_type | enum | 老阴 / 少阳 / 少阴 / 老阳 |
+| is_changing | bool | 是否为动爻 |
 
----
+### 4.3 Interpretation（解读结果）
 
-### 2.3 统一错误响应格式
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | UUID | 主键 |
+| divination_id | UUID | 外键，每次起卦一条（MVP） |
+| language | varchar | 语言代码，默认 `zh-CN` |
+| summary | text | 总结（3-5 句） |
+| base_reading | text | 本卦解读 |
+| changing_lines_analysis | text | 动爻分析（无动爻时为空） |
+| changed_hexagram_trend | text | 变卦趋势（无动爻时为空） |
+| category_advice | text | 分类建议 |
+| action_advice | text[] | 行动建议（3 条） |
+| generated_by | enum | 固定为 `ai`（MVP） |
+| provider | varchar | 实际使用的 LLM provider，如 `claude` / `deepseek` |
+| created_at | timestamp | 创建时间 |
 
-```json
-{
-  "error_code": "INVALID_COIN_VALUES",
-  "message": "coin_values must be array of three values, each 2 or 3",
-  "details": {}
-}
-```
+### 4.4 FollowupConversation（追问对话）
 
----
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | UUID | 主键 |
+| divination_id | UUID | 外键，与 Divination 1:1 |
+| rounds_used | int | 已使用轮数 |
+| rounds_limit | int | 上限，固定为 20 |
+| created_at | timestamp | 创建时间 |
 
-## 3. 数据模型
+### 4.5 FollowupMessage（追问消息）
 
-### 3.1 核心表结构
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | UUID | 主键 |
+| conversation_id | UUID | 外键 |
+| role | enum | `user` / `assistant` |
+| content | text | 消息内容 |
+| created_at | timestamp | 创建时间 |
 
-#### `divinations` 表
-```sql
-CREATE TABLE divinations (
-  id UUID PRIMARY KEY,
-  user_id UUID,                          -- nullable for MVP
-  question TEXT NOT NULL,
-  category VARCHAR(50),
-  timeframe VARCHAR(50),
-  notes TEXT,
-  language VARCHAR(10) DEFAULT 'zh-CN',
-  original_hexagram_number INT,          -- 1-64
-  changing_lines JSON,                   -- e.g., [1,3,5]
-  future_hexagram_number INT,            -- 1-64
-  created_at TIMESTAMP,
-  updated_at TIMESTAMP
-);
-```
+### 4.6 Hexagram（卦象参考数据）
 
-#### `divination_lines` 表
-```sql
-CREATE TABLE divination_lines (
-  id UUID PRIMARY KEY,
-  divination_id UUID NOT NULL,
-  line_number INT NOT NULL,              -- 1-6
-  coin_values JSON NOT NULL,             -- e.g., [3, 2, 3]
-  coin_sum INT NOT NULL,                 -- 6 | 7 | 8 | 9
-  result VARCHAR(20) NOT NULL,           -- '老阴'|'少阳'|'少阴'|'老阳'
-  is_changing BOOLEAN NOT NULL,          -- TRUE if coin_sum is 6 or 9
-  created_at TIMESTAMP
-);
-```
-
-#### `hexagrams` 表
-```sql
-CREATE TABLE hexagrams (
-  id INT PRIMARY KEY,                    -- 1-64
-  name VARCHAR(50),
-  upper_trigram VARCHAR(50),
-  lower_trigram VARCHAR(50),
-  binary_code CHAR(6),                   -- e.g., '111111'
-  traditional_meaning TEXT,
-  modern_interpretation TEXT
-);
-```
-
-#### `interpretation_templates` 表
-```sql
-CREATE TABLE interpretation_templates (
-  id UUID PRIMARY KEY,
-  hexagram_number INT,
-  category VARCHAR(50),
-  language VARCHAR(10),
-  template_text TEXT,                    -- 包含占位符 {world}, {response}, etc
-  created_at TIMESTAMP
-);
-```
-
-#### `followup_conversations` 表
-```sql
-CREATE TABLE followup_conversations (
-  id UUID PRIMARY KEY,
-  divination_id UUID NOT NULL UNIQUE,    -- 每次卦象最多 1 个对话
-  created_at TIMESTAMP
-);
-```
-
-#### `followup_messages` 表
-```sql
-CREATE TABLE followup_messages (
-  id UUID PRIMARY KEY,
-  conversation_id UUID NOT NULL,
-  role VARCHAR(10) NOT NULL,             -- 'user' | 'assistant'
-  content TEXT NOT NULL,
-  created_at TIMESTAMP
-);
-```
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| hexagram_id | int | 1-64 |
+| name | varchar | 卦名，如"乾" |
+| trigrams | varchar[] | 上下卦（八卦），如 `["乾","乾"]` |
+| binary_code | varchar | 爻序二进制，如 `"111111"` |
+| palace | varchar | 所属宫位（八宫） |
+| world_line | int | 世爻位置（1-6） |
+| response_line | int | 应爻位置（1-6） |
+| fortune_level | int | 吉凶评级（1-5） |
+| meaning | text | 传统卦义简述 |
 
 ---
 
-## 4. 前端架构
+## 5. 关键设计决策
 
-### 4.1 路由结构
+> 本节记录架构层面的设计选择与依据，具体实现见 SPEC_IMPLEMENTATION。
 
-```
-/                          → 首页
-/ask                       → 提问页
-/cast/:divination_id       → 起卦页
-/result/:divination_id     → 结果页（含 Follow-up 区块）
-/history                   → 历史记录（MVP 可选，需登录）
-/rules                     → 规则说明页
-/about                     → 关于我们
-/faq                       → 常见问题
-```
+### 5.1 Rule Engine 与 Interpretation 解耦
 
-### 4.2 技术栈
+RuleEngine 只做确定性计算（硬币 → 爻 → 卦），不含任何解读逻辑。InterpretationService 读取已生成的卦象数据后独立调用 LLM 生成解读。
 
-| 层级 | 选型 |
+**好处**：RuleEngine 可完整单元测试；解读服务故障不影响起卦和盘面展示。
+
+### 5.2 /result 与 /interpret 解耦
+
+用户完成 6 次抛币后，盘面数据（本卦、变卦、原始记录）由 `/result` 即时返回，不依赖 LLM。AI 解读由 `/interpret` 单独触发。
+
+**好处**：LLM 超时或故障时用户仍可看到盘面，解读区块单独展示错误状态。
+
+### 5.3 Follow-up 独立为对话能力
+
+FollowupService 作为独立 Service，通过 ConversationManager 维护追问历史与 20 轮计数，不复用 InterpretationService 的调用链。
+
+**好处**：追问与首次解读的 prompt 策略可独立演进；对话状态管理集中在 ConversationManager，边界清晰。
+
+### 5.4 TemplateFallback 的适用边界
+
+MVP 阶段 LLM 不可用时直接返回错误提示，不实现模板兜底。v2 阶段如需提升可用性，仅在 InterpretationService 内引入 TemplateFallback，不影响其他模块。
+
+### 5.5 上下文锚定原则
+
+追问回复须锚定在本次卦象上下文中，通过两层机制保证（v2 补充第三层）：
+
+1. **System Prompt**：PromptBuilder 将本卦、变卦、动爻信息注入每条追问的 system prompt
+2. **Source Note**：每条 assistant 回复附注来源标注，如"以下回答基于本次卦象：本卦 × 变卦"
+3. **SafetyCheck（v2）**：校验输出是否脱离卦象语境，作为可插拔护栏层后续引入
+
+### 5.6 MVP 的单一路径设计
+
+MVP 不实现多解读模式、多语言、缓存层。所有请求走单一路径，优先跑通核心流程，降低实现复杂度。
+
+---
+
+## 6. MVP 范围与后续扩展
+
+### 6.1 MVP 范围
+
+- 完整起卦流程（提问 → 6 次抛币 → 盘面展示）
+- AI 白话解读（LLM 不可用时返回错误提示）
+- 追问（Follow-up）最多 20 轮，与卦象绑定
+- 匿名使用，无需登录
+- 响应式布局（移动端 + 桌面端）
+- 起卦进度持久化（中途刷新不丢失）
+
+### 6.2 后续扩展方向
+
+| 版本 | 功能 |
 |------|------|
-| 框架 | Next.js (App Router) |
-| 样式 | Tailwind CSS |
-| 状态管理 | Zustand |
-| HTTP 客户端 | axios / fetch |
-| 动画 | Framer Motion（抛币动画） |
-| 卦象渲染 | 自定义 SVG 组件 |
-
-### 4.3 关键组件
-
-```
-HexagramDisplay       → 卦象可视化（本卦/变卦，含动爻标记）
-CoinFlipPanel         → 抛币交互（单次 3 枚，×6 次）
-CastRecord            → 原始抛掷记录表格
-InterpretationCard    → 解读卡片
-FollowUpChat          → Follow-up 对话区块
-HistoryList           → 历史记录列表
-```
-
----
-
-## 5. 后端架构
-
-### 5.1 技术栈
-
-| 层级 | 选型 |
-|------|------|
-| 语言 | Python 3.11+ |
-| 框架 | FastAPI |
-| 数据库 | PostgreSQL 15 + Redis 7 |
-| 部署 | Docker + docker-compose |
-
-### 5.2 项目结构
-
-```
-backend/
-├── app/
-│   ├── api/
-│   │   ├── divinations.py     (起卦相关 endpoints)
-│   │   ├── hexagrams.py       (卦象查询)
-│   │   ├── rules.py           (规则说明)
-│   │   └── followup.py        (追问对话)
-│   ├── core/
-│   │   ├── rules_engine.py    (爻象推导、卦象生成，纯函数)
-│   │   ├── hexagram_data.py   (64卦数据)
-│   │   └── templates.py       (解读模板)
-│   ├── models/
-│   │   └── divination.py      (SQLAlchemy 模型)
-│   └── main.py
-├── tests/
-├── requirements.txt
-└── docker-compose.yml
-```
-
----
-
-## 6. 核心算法：卦象生成
-
-```python
-def derive_line_type(coin_values: list[int]) -> dict:
-    """
-    Input:  [3, 2, 3]  (三枚硬币面值，正面=3，反面=2)
-    Output: { sum: 8, result: '少阴', is_changing: False }
-    """
-    s = sum(coin_values)
-    mapping = {
-        6: ('老阴', True),
-        7: ('少阳', False),
-        8: ('少阴', False),
-        9: ('老阳', True),
-    }
-    result, is_changing = mapping[s]
-    return { 'sum': s, 'result': result, 'is_changing': is_changing }
-
-
-def generate_hexagram(line_results: list[str]) -> dict:
-    """
-    Input:  ['少阳', '少阴', '老阳', '少阳', '老阴', '少阳']
-            index 0 = 初爻, index 5 = 上爻
-    Output: { original: 11, changing_lines: [3, 5], future: 54 }
-    """
-    # 1. 阳=1，阴=0
-    bits = ['1' if '阳' in r else '0' for r in line_results]
-
-    # 2. 初爻在最低位，上爻在最高位 → 反转后转十进制查表
-    original_code = ''.join(reversed(bits))
-    original_num = HEXAGRAM_TABLE[original_code]   # code → 1-64
-
-    # 3. 老爻位置
-    changing = [i + 1 for i, r in enumerate(line_results) if '老' in r]
-
-    # 4. 变卦：翻转老爻对应 bit
-    future_bits = bits[:]
-    for i in changing:
-        future_bits[i - 1] = '0' if bits[i - 1] == '1' else '1'
-    future_code = ''.join(reversed(future_bits))
-    future_num = HEXAGRAM_TABLE[future_code]
-
-    return {
-        'original_hexagram': original_num,
-        'changing_lines': changing,
-        'future_hexagram': future_num,
-    }
-```
-
----
-
-## 7. 64 卦对照表（六位二进制编码）
-
-> 编码规则：位 0（最低位）= 初爻，位 5（最高位）= 上爻；阳=1，阴=0。
-
-| # | 名称 | 上卦 | 下卦 | 二进制码 |
-|---|------|------|------|---------|
-| 1 | 乾 | 乾 | 乾 | 111111 |
-| 2 | 坤 | 坤 | 坤 | 000000 |
-| 3 | 屯 | 坎 | 震 | 010001 |
-| 4 | 蒙 | 艮 | 坎 | 100010 |
-| 5 | 需 | 坎 | 乾 | 010111 |
-| 6 | 讼 | 乾 | 坎 | 111010 |
-| 7 | 师 | 坤 | 坎 | 000010 |
-| 8 | 比 | 坎 | 坤 | 010000 |
-| 9 | 小畜 | 巽 | 乾 | 110111 |
-| 10 | 履 | 乾 | 兑 | 111011 |
-| 11 | 泰 | 坤 | 乾 | 000111 |
-| 12 | 否 | 乾 | 坤 | 111000 |
-| 13 | 同人 | 乾 | 离 | 111101 |
-| 14 | 大有 | 离 | 乾 | 101111 |
-| 15 | 谦 | 坤 | 艮 | 000100 |
-| 16 | 豫 | 震 | 坤 | 001000 |
-| 17 | 随 | 兑 | 震 | 011001 |
-| 18 | 蛊 | 艮 | 巽 | 100110 |
-| 19 | 临 | 坤 | 兑 | 000011 |
-| 20 | 观 | 巽 | 坤 | 110000 |
-| 21 | 噬嗑 | 离 | 震 | 101001 |
-| 22 | 贲 | 艮 | 离 | 100101 |
-| 23 | 剥 | 艮 | 坤 | 100000 |
-| 24 | 复 | 坤 | 震 | 000001 |
-| 25 | 无妄 | 乾 | 震 | 111001 |
-| 26 | 大畜 | 艮 | 乾 | 100111 |
-| 27 | 颐 | 艮 | 震 | 100001 |
-| 28 | 大过 | 兑 | 巽 | 011110 |
-| 29 | 坎 | 坎 | 坎 | 010010 |
-| 30 | 离 | 离 | 离 | 101101 |
-| 31 | 咸 | 兑 | 艮 | 011100 |
-| 32 | 恒 | 震 | 巽 | 001110 |
-| 33 | 遁 | 乾 | 艮 | 111100 |
-| 34 | 大壮 | 震 | 乾 | 001111 |
-| 35 | 晋 | 离 | 坤 | 101000 |
-| 36 | 明夷 | 坤 | 离 | 000101 |
-| 37 | 家人 | 巽 | 离 | 110101 |
-| 38 | 睽 | 离 | 兑 | 101011 |
-| 39 | 蹇 | 坎 | 艮 | 010100 |
-| 40 | 解 | 震 | 坎 | 001010 |
-| 41 | 损 | 艮 | 兑 | 100011 |
-| 42 | 益 | 巽 | 震 | 110001 |
-| 43 | 夬 | 兑 | 乾 | 011111 |
-| 44 | 姤 | 乾 | 巽 | 111110 |
-| 45 | 萃 | 兑 | 坤 | 011000 |
-| 46 | 升 | 坤 | 巽 | 000110 |
-| 47 | 困 | 兑 | 坎 | 011010 |
-| 48 | 井 | 坎 | 巽 | 010110 |
-| 49 | 革 | 兑 | 离 | 011101 |
-| 50 | 鼎 | 离 | 巽 | 101110 |
-| 51 | 震 | 震 | 震 | 001001 |
-| 52 | 艮 | 艮 | 艮 | 100100 |
-| 53 | 渐 | 巽 | 艮 | 110100 |
-| 54 | 归妹 | 震 | 兑 | 001011 |
-| 55 | 丰 | 震 | 离 | 001101 |
-| 56 | 旅 | 离 | 艮 | 101100 |
-| 57 | 巽 | 巽 | 巽 | 110110 |
-| 58 | 兑 | 兑 | 兑 | 011011 |
-| 59 | 涣 | 巽 | 坎 | 110010 |
-| 60 | 节 | 坎 | 兑 | 010011 |
-| 61 | 中孚 | 巽 | 兑 | 110011 |
-| 62 | 小过 | 震 | 艮 | 001100 |
-| 63 | 既济 | 坎 | 离 | 010101 |
-| 64 | 未济 | 离 | 坎 | 101010 |
-
----
-
-## 8. API 使用示例
-
-```
-1. POST /api/divination/create
-   请求: { "question": "这次换工作能成功吗？", "category": "事业" }
-   响应: { "divination_id": "abc-123" }
-
-2. POST /api/divination/abc-123/cast  ×6
-   第1次: { "line_number": 1, "coin_values": [3, 2, 3] }  → sum=8 少阴 静
-   第2次: { "line_number": 2, "coin_values": [3, 3, 3] }  → sum=9 老阳 动
-   ...
-   第6次: { "line_number": 6, "coin_values": [2, 2, 3] }  → sum=7 少阳 静
-
-3. GET /api/divination/abc-123/result
-   响应: 完整解读（本卦 + 变卦 + 动爻分析 + 分类建议）
-
-4. POST /api/divination/abc-123/followup
-   请求: { "message": "关于事业转变，有什么具体建议？" }
-   响应: { "conversation_id": "...", "reply": "基于本卦..." }
-```
-
----
-
-## 9. 开发阶段规划
-
-### Phase 1: MVP (Week 1-3)
-
-**后端**:
-- [ ] 规则引擎：爻象推导 + 卦象生成
-- [ ] 卦象数据库：64卦入库
-- [ ] 核心 API：create、cast、result
-- [ ] 基础解读引擎（卦义 + 分类映射）
-
-**前端**:
-- [ ] 首页、提问页、起卦页、结果页
-- [ ] 响应式布局
-
-**部署**:
-- [ ] Docker Compose 本地环境
-
-### Phase 2: 完善 (Week 4-5)
-
-- [ ] Follow-up 追问对话
-- [ ] 历史记录页面
-- [ ] 规则说明页
-- [ ] 错误处理与边界覆盖
-- [ ] 前端性能优化
-
-### Phase 3: 二期 (Week 6+)
-
-- [ ] 用户认证（JWT）
-- [ ] 多语言 i18n
-- [ ] AI 解读接入
-- [ ] 会员系统
+| v2 | TemplateFallback（InterpretationService 降级兜底） |
+| | SafetyCheck（可插拔输入 / 输出校验层） |
+| | 多解读模式（classical / modern / strategic / emotional） |
+| | 历史记录页（需登录，JWT） |
+| | 规则说明页（零基础入门引导） |
+| v3 | 用户认证与账号体系 |
+| | 国际化（zh-TW / zh-HK / en / ko） |
+| | Prompt 缓存（降低 LLM 调用成本） |
+| | VIP 功能（深度解读、专属模式） |
 
 ---
 
 ## 更新日志
 
-- **v0.1** (2026-04-12): 从 SPEC_REQUIREMENT v1.0 中提取 Design 内容，独立成文
+- **v1.1** (2026-04-25)：重构文档结构，精简为 6 节；固定术语表；移除 Implementation 粒度内容（DDL、JSON Schema、代码片段、目录结构）至 SPEC_IMPLEMENTATION；架构简化为 MVP 单路径（移除 Redis、TemplateFallback；新增 DeepSeekProvider；SafetyCheck 标记为 v2）
+- **v1.0** (2026-04-12)：初版 Design Spec
