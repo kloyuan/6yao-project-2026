@@ -256,6 +256,8 @@ flowchart TD
 
 ### 4.6 Hexagram（卦象参考数据）
 
+> **存储方式**：静态 JSON 文件（后端），不进数据库。64 卦数据只读，无运行时写入需求，静态文件可满足所有查询场景，避免不必要的数据库依赖。
+
 | 字段 | 类型 | 说明 |
 |------|------|------|
 | hexagram_id | int | 1-64 |
@@ -339,5 +341,6 @@ MVP 不实现多解读模式、多语言、缓存层。所有请求走单一路�
 
 ## 更新日志
 
+- **v1.2** (2026-04-25)：4.6 Hexagram 改为后端静态 JSON 文件，不进数据库
 - **v1.1** (2026-04-25)：重构文档结构，精简为 6 节；固定术语表；移除 Implementation 粒度内容（DDL、JSON Schema、代码片段、目录结构）至 SPEC_IMPLEMENTATION；架构简化为 MVP 单路径（移除 Redis、TemplateFallback；新增 DeepSeekProvider；SafetyCheck 标记为 v2）
 - **v1.0** (2026-04-12)：初版 Design Spec
