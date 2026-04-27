@@ -1,0 +1,41 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #1c1917;
+  --surface: #292524;
+  --gold: #b45309;
+  --gold-light: #d97706;
+  --text: #e7e5e4;
+  --text-muted: #a8a29e;
+}
+
+html, body {
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+}
+
+/* Yao line styles */
+.yao-line {
+  @apply flex items-center gap-1 my-0.5;
+}
+.yao-solid {
+  @apply h-2 flex-1 rounded-sm bg-amber-600;
+}
+.yao-broken-half {
+  @apply h-2 flex-1 rounded-sm bg-amber-600;
+  max-width: 42%;
+}
+.yao-changing-dot {
+  @apply w-2 h-2 rounded-full border-2 border-amber-400 bg-transparent;
+}
+.yao-changing-solid-dot {
+  @apply w-2 h-2 rounded-full bg-red-400;
+}
+
+/* Utility */
+.gold-divider {
+  @apply border-amber-700/40;
+}
