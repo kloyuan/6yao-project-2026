@@ -177,15 +177,9 @@
             pointer-events: auto;
         }
 
-        .header-left {
-            display: flex;
-            align-items: center;
-            gap: 12px;
+        .reset-btn {
             cursor: pointer;
-        }
-
-        .back-icon {
-            font-size: 16px;
+            font-family: var(--font-main);
         }
 
         .progress-indicator {
@@ -599,12 +593,9 @@
     <div class="corner-mark bottom-right" vid="20"></div>
 
     
-        <header class="header" vid="21">
-            <div class="header-left" vid="22">
-                <span class="back-icon" vid="23">←</span>
-                <span vid="24">起卦</span>
-            </div>
-
+        <header class="header">
+            <div></div>
+            <span class="reset-btn" id="resetBtn">重置∞</span>
         </header>
 
 <main class="stage" vid="25">
@@ -746,8 +737,8 @@
             target.location.href = path;
         }
 
-        document.querySelector('.back-icon').addEventListener('click', () => {
-            navigate('/question');
+        document.getElementById('resetBtn').addEventListener('click', () => {
+            navigate('/');
         });
         // ─────────────────────────────────────────────────────
 
@@ -868,7 +859,7 @@
             }
 
             
-            resultNameEl.textContent = `${resultData.name} (${sum})`;
+            resultNameEl.textContent = resultData.name;
             resultPinyinEl.textContent = resultData.pinyin;
             currentResultArea.classList.add('visible');
 

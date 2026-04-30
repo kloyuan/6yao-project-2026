@@ -334,7 +334,7 @@
   <div class="header">
     <div class="back-icon" id="backBtn">←</div>
     <span class="header-title">卦象解读</span>
-    <div style="width:36px"></div>
+    <span id="resetBtn" style="font-size:10px;letter-spacing:0.2em;opacity:0.6;cursor:pointer;">重置∞</span>
   </div>
 
   <div class="wrap" id="root">
@@ -353,6 +353,11 @@ const LBLS  = ['初爻','二爻','三爻','四爻','五爻','上爻'];
 
 // ── Navigation ────────────────────────────────────────────
 document.getElementById('backBtn').addEventListener('click', () => {
+  const top = window.parent !== window ? window.parent : window;
+  top.location.href = '/';
+});
+
+document.getElementById('resetBtn').addEventListener('click', () => {
   const top = window.parent !== window ? window.parent : window;
   top.location.href = '/';
 });
@@ -533,7 +538,7 @@ function rInterp(interp, hasChg) {
 // ── Chat state ────────────────────────────────────────────
 let msgs        = [];
 let ruCnt       = 0;
-let ruLimit     = 5;
+let ruLimit     = 20;
 let sending     = false;
 
 function rChat() {
