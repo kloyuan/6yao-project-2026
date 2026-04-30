@@ -13,21 +13,14 @@ function randomCoins(): number[] {
 
 export default function CoinThrow({ lineNumber, onThrow }: Props) {
   const [coins, setCoins] = useState<number[] | null>(null)
-  const [isConfirming, setIsConfirming] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
 
-  function handleThrow() {
-    setCoins(randomCoins())
-  }
-
-  async function handleConfirm() {
-    if (!coins) return
-    setIsConfirming(true)
-    await onThrow(coins)
-    setIsConfirming(false)
-    setCoins(null)
-  }
-
-  function handleRethrow() {
+  async function handleThrow() {
+    const result = randomCoins()
+    setCoins(result)
+    setSubmitting(true)
+    await onThrow(result)
+    setSubmitting(false)
     setCoins(null)
   }
 
@@ -49,7 +42,6 @@ export default function CoinThrow({ lineNumber, onThrow }: Props) {
         </button>
       ) : (
         <div className="space-y-6">
-          {/* Coin visuals */}
           <div className="flex justify-center gap-4">
             {coins.map((v, i) => (
               <div
@@ -65,7 +57,6 @@ export default function CoinThrow({ lineNumber, onThrow }: Props) {
             ))}
           </div>
 
-          {/* Sum and line type */}
           <div className="text-stone-300">
             <span className="text-stone-500 text-sm">合计：</span>
             <span className="text-amber-400 font-bold text-xl mx-1">{coinSum}</span>
@@ -80,23 +71,9 @@ export default function CoinThrow({ lineNumber, onThrow }: Props) {
             )}
           </div>
 
-          <div className="flex justify-center gap-3">
-            <button
-              onClick={handleRethrow}
-              className="px-5 py-2 border border-stone-600 text-stone-400
-                         hover:border-stone-400 rounded-lg text-sm transition-colors"
-            >
-              重新抛掷
-            </button>
-            <button
-              onClick={handleConfirm}
-              disabled={isConfirming}
-              className="px-6 py-2 bg-amber-700 hover:bg-amber-600 text-white
-                         rounded-lg text-sm font-medium transition-all disabled:opacity-50"
-            >
-              {isConfirming ? '记录中…' : '确认此爻'}
-            </button>
-          </div>
+          {submitting && (
+            <p className="text-stone-500 text-sm animate-pulse">记录中…</p>
+          )}
         </div>
       )}
     </div>

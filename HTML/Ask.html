@@ -1,0 +1,422 @@
+<html lang="zh-CN" vid="0"><head vid="1">
+    <meta charset="UTF-8" vid="2">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" vid="3">
+    <title vid="4">方寸 | Fangcun Inquiry</title>
+    
+    <style vid="5">
+        :root {
+            --bg: #F1EFE9;
+            --ink: #1A1A1B;
+            --accent: #2C3A4F;
+            --seal: #A63D33;
+            --haze: rgba(212, 223, 208, 0.6);
+            --slate-mist: #6F7A7C;
+            --font-main: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+            --font-serif: "Source Han Serif CN", "Noto Serif CJK SC", serif;
+            --glass-bg: rgba(255, 255, 255, 0.25);
+            --glass-border: rgba(255, 255, 255, 0.4);
+            --radius-main: clamp(16px, 2vw, 28px);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-font-smoothing: antialiased;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: var(--bg);
+            font-family: var(--font-main);
+            color: var(--ink);
+        }
+
+        
+        .ink-world {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            overflow: hidden;
+        }
+
+        .mountain {
+            position: absolute;
+            bottom: -10%;
+            width: 150%;
+            left: -25%;
+            filter: blur(40px);
+            opacity: 0.4;
+            transition: transform 0.1s ease-out;
+            pointer-events: none;
+        }
+
+        .mountain-1 { height: 60%; fill: var(--accent); z-index: 2; bottom: -5%; }
+        .mountain-2 { height: 45%; fill: var(--ink); z-index: 3; bottom: -10%; opacity: 0.6; }
+        .mountain-3 { height: 30%; fill: #88969b; z-index: 1; bottom: 5%; opacity: 0.3; }
+
+        .haze-orb {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(80px);
+            z-index: 4;
+            mix-blend-mode: multiply;
+        }
+
+        .orb-1 {
+            width: 300px;
+            height: 300px;
+            background: var(--haze);
+            top: 20%;
+            left: -10%;
+            animation: drift 20s infinite alternate;
+        }
+
+        .orb-2 {
+            width: 400px;
+            height: 400px;
+            background: rgba(44, 58, 79, 0.15);
+            bottom: 10%;
+            right: -20%;
+            animation: drift 25s infinite alternate-reverse;
+        }
+
+        @keyframes drift {
+            0% { transform: translate(0, 0) scale(1); }
+            100% { transform: translate(40px, 60px) scale(1.1); }
+        }
+
+        #mistCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 5;
+            pointer-events: none;
+            opacity: 0.5;
+        }
+
+        .corner-mark {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            border: 0.5px solid var(--ink);
+            opacity: 0.3;
+            z-index: 10;
+        }
+        .top-left { top: 20px; left: 20px; border-right: 0; border-bottom: 0; }
+        .top-right { top: 20px; right: 20px; border-left: 0; border-bottom: 0; }
+        .bottom-left { bottom: 20px; left: 20px; border-right: 0; border-top: 0; }
+        .bottom-right { bottom: 20px; right: 20px; border-left: 0; border-top: 0; }
+
+
+        
+        .stage {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            padding: 40px 24px;
+            z-index: 10;
+            overflow-y: auto;
+            scroll-behavior: smooth;
+        }
+
+        
+        .glass-panel {
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-main);
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.05);
+        }
+
+        .section-title {
+            font-family: var(--font-serif);
+            font-size: 14px;
+            color: var(--ink);
+            opacity: 0.8;
+            margin-bottom: 12px;
+            letter-spacing: 0.1em;
+            display: flex;
+            align-items: center;
+        }
+        
+        .section-title::before {
+            content: '';
+            display: inline-block;
+            width: 4px;
+            height: 4px;
+            background-color: var(--seal);
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        
+        .question-area {
+            width: 100%;
+            height: 120px;
+            background: transparent;
+            border: none;
+            resize: none;
+            font-family: var(--font-serif);
+            font-size: 16px;
+            line-height: 1.6;
+            color: var(--ink);
+            outline: none;
+        }
+
+        .question-area::placeholder {
+            color: var(--ink);
+            opacity: 0.4;
+        }
+
+        
+        .tag-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+        }
+
+        .glass-tag {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-main);
+            padding: 10px 0;
+            text-align: center;
+            font-size: 13px;
+            color: var(--ink);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .glass-tag.active {
+            background: rgba(44, 58, 79, 0.1);
+            border-color: var(--accent);
+            font-weight: bold;
+        }
+
+        
+        .time-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+
+        
+        .action-container {
+            margin-top: auto;
+            display: flex;
+            justify-content: center;
+            padding-bottom: 20px;
+        }
+
+        .btn-start {
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-main);
+            padding: 14px 40px;
+            font-family: var(--font-serif);
+            font-size: 16px;
+            letter-spacing: 0.2em;
+            color: var(--ink);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        }
+
+        .btn-start:active {
+            background: var(--slate-mist);
+            color: var(--bg);
+            border-color: var(--slate-mist);
+        }
+
+        
+        .header {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 30px;
+            opacity: 0.6;
+        }
+        
+        .back-btn {
+            background: none;
+            border: none;
+            font-size: 20px;
+            color: var(--ink);
+            cursor: pointer;
+        }
+        
+        .header-title {
+            font-family: var(--font-serif);
+            font-size: 12px;
+            letter-spacing: 0.2em;
+        }
+
+    </style>
+</head>
+<body vid="6">
+
+    
+    <div class="ink-world" id="parallaxLayer" vid="7">
+        <div class="haze-orb orb-1" vid="8"></div>
+        <div class="haze-orb orb-2" vid="9"></div>
+
+        <svg class="mountain mountain-1" viewBox="0 0 1000 400" preserveAspectRatio="none" vid="10">
+            <path d="M0,400 Q150,100 300,250 T600,100 T1000,350 L1000,400 L0,400 Z" vid="11"></path>
+        </svg>
+        <svg class="mountain mountain-2" viewBox="0 0 1000 400" preserveAspectRatio="none" vid="12">
+            <path d="M0,400 Q200,150 400,300 T800,50 T1000,400 L0,400 Z" vid="13"></path>
+        </svg>
+        <svg class="mountain mountain-3" viewBox="0 0 1000 400" preserveAspectRatio="none" vid="14">
+            <path d="M0,400 Q250,50 500,200 T1000,100 L1000,400 L0,400 Z" vid="15"></path>
+        </svg>
+
+        <canvas id="mistCanvas" vid="16"></canvas>
+    </div>
+
+    
+    <div class="corner-mark top-left" vid="17"></div>
+    <div class="corner-mark top-right" vid="18"></div>
+    <div class="corner-mark bottom-left" vid="19"></div>
+    <div class="corner-mark bottom-right" vid="20"></div>
+
+    
+    <main class="stage" vid="21">
+        
+        <div class="header" vid="22">
+            <span class="header-title" vid="23">起心动念</span>
+        </div>
+
+        
+        <div class="glass-panel" vid="24">
+            <div class="section-title" vid="25">所问何事</div>
+            <textarea class="question-area" placeholder="请简述您当下的困惑或祈愿..." vid="26"></textarea>
+        </div>
+
+        
+        <div class="glass-panel" vid="27">
+            <div class="section-title" vid="28">领域</div>
+            <div class="tag-grid" vid="29">
+                <div class="glass-tag active" vid="30">感情</div>
+                <div class="glass-tag" vid="31">事业</div>
+                <div class="glass-tag" vid="32">财运</div>
+                <div class="glass-tag" vid="33">学业</div>
+                <div class="glass-tag" vid="34">合作</div>
+                <div class="glass-tag" vid="35">健康</div>
+                <div class="glass-tag" vid="36">寻物</div>
+                <div class="glass-tag" vid="37">其他</div>
+            </div>
+        </div>
+
+        
+        <div class="glass-panel" vid="38">
+            <div class="section-title" vid="39">时效</div>
+            <div class="time-grid" vid="40">
+                <div class="glass-tag" vid="41">一周内</div>
+                <div class="glass-tag active" vid="42">一个月内</div>
+                <div class="glass-tag" vid="43">三个月内</div>
+                <div class="glass-tag" vid="44">半年内</div>
+                <div class="glass-tag" vid="45">一年内</div>
+                <div class="glass-tag" vid="46">不限</div>
+            </div>
+        </div>
+
+        
+        <div class="action-container" vid="47">
+            <button class="btn-start" vid="48">开始起卦</button>
+        </div>
+
+    </main>
+
+    <script vid="49">
+        
+        const tagGrids = document.querySelectorAll('.tag-grid, .time-grid');
+        tagGrids.forEach(grid => {
+            const tags = grid.querySelectorAll('.glass-tag');
+            tags.forEach(tag => {
+                tag.addEventListener('click', () => {
+                    tags.forEach(t => t.classList.remove('active'));
+                    tag.classList.add('active');
+                });
+            });
+        });
+
+        
+        const canvas = document.getElementById('mistCanvas');
+        const ctx = canvas.getContext('2d');
+        let particles = [];
+
+        function resize() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+
+        window.addEventListener('resize', resize);
+        resize();
+
+        class Particle {
+            constructor() {
+                this.x = Math.random() * canvas.width;
+                this.y = Math.random() * canvas.height;
+                this.size = Math.random() * 150 + 50;
+                this.speedX = Math.random() * 0.5 - 0.25;
+                this.speedY = Math.random() * 0.2 - 0.1;
+                this.opacity = Math.random() * 0.15;
+            }
+
+            update() {
+                this.x += this.speedX;
+                this.y += this.speedY;
+
+                if (this.x > canvas.width + 100) this.x = -100;
+                if (this.x < -100) this.x = canvas.width + 100;
+                if (this.y > canvas.height + 100) this.y = -100;
+                if (this.y < -100) this.y = canvas.height + 100;
+            }
+
+            draw() {
+                ctx.beginPath();
+                let gradient = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, this.size);
+                gradient.addColorStop(0, `rgba(255, 255, 255, ${this.opacity})`);
+                gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+                ctx.fillStyle = gradient;
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        function init() {
+            for (let i = 0; i < 30; i++) {
+                particles.push(new Particle());
+            }
+        }
+
+        function animate() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            particles.forEach(p => {
+                p.update();
+                p.draw();
+            });
+            requestAnimationFrame(animate);
+        }
+
+        init();
+        animate();
+    </script>
+
+</body></html>

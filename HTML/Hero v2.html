@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>六爻 · Liu Yao</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@200;300;400&display=swap" rel="stylesheet" />
+
+  <style>
+    :root {
+      --bg: #F1EFE9;
+      --ink: #1A1A1B;
+      --accent: #2C3A4F;
+      --seal: #A63D33;
+      --haze: rgba(212, 223, 208, 0.6);
+      --font-main: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      --font-serif: "Noto Serif SC", "Source Han Serif CN", "Noto Serif CJK SC", serif;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body, html {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: var(--bg);
+      font-family: var(--font-main);
+      color: var(--ink);
+    }
+
+    .stage {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      align-items: center;
+      padding: 40px 24px;
+      z-index: 10;
+    }
+
+    .ink-world {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+      overflow: hidden;
+    }
+
+    .mountain {
+      position: absolute;
+      bottom: -10%;
+      width: 150%;
+      left: -25%;
+      filter: blur(40px);
+      opacity: 0.4;
+      transition: transform 0.1s ease-out;
+      pointer-events: none;
+    }
+
+    .mountain-1 { height: 60%; fill: var(--accent); z-index: 2; bottom: -5%; }
+    .mountain-2 { height: 45%; fill: var(--ink);    z-index: 3; bottom: -10%; opacity: 0.6; }
+    .mountain-3 { height: 30%; fill: #88969b;        z-index: 1; bottom: 5%;  opacity: 0.3; }
+
+    .haze-orb {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(80px);
+      z-index: 4;
+      mix-blend-mode: multiply;
+    }
+
+    .orb-1 {
+      width: 300px; height: 300px;
+      background: var(--haze);
+      top: 20%; left: -10%;
+      animation: drift 20s infinite alternate;
+    }
+
+    .orb-2 {
+      width: 400px; height: 400px;
+      background: rgba(44, 58, 79, 0.15);
+      bottom: 10%; right: -20%;
+      animation: drift 25s infinite alternate-reverse;
+    }
+
+    .metadata-top {
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      font-size: 10px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      opacity: 0.6;
+    }
+
+    .logo-container {
+      position: absolute;
+      top: 45%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+      z-index: 20;
+    }
+
+    .logo {
+      font-family: var(--font-serif);
+      font-size: 52px;
+      font-weight: 200;
+      letter-spacing: 0.5em;
+      padding-left: 0.5em;
+      color: var(--ink);
+      position: relative;
+      text-shadow: 0 0 40px rgba(255,255,255,0.8);
+    }
+
+    .logo::after {
+      content: '';
+      position: absolute;
+      top: 50%; left: 50%;
+      width: 140%; height: 140%;
+      transform: translate(-50%, -50%);
+      background: radial-gradient(circle, rgba(255,255,255,0.4) 0%, transparent 70%);
+      z-index: -1;
+      pointer-events: none;
+    }
+
+    .logo-sub {
+      margin-top: 12px;
+      font-size: 9px;
+      letter-spacing: 0.8em;
+      text-transform: uppercase;
+      opacity: 0.4;
+      line-height: 1.6;
+    }
+
+    .bottom-action {
+      text-align: center;
+      z-index: 20;
+    }
+
+    .seal-script {
+      font-family: var(--font-serif);
+      font-size: 14px;
+      letter-spacing: 0.3em;
+      color: var(--ink);
+      opacity: 0.7;
+      margin-bottom: 24px;
+      display: block;
+    }
+
+    .swipe-indicator {
+      width: 1px;
+      height: 60px;
+      background: linear-gradient(to bottom, var(--ink), transparent);
+      margin: 0 auto;
+      animation: pulse-line 4s infinite ease-in-out;
+    }
+
+    .decor-star {
+      font-size: 12px;
+      margin-bottom: 8px;
+      display: block;
+    }
+
+    @keyframes drift {
+      0%   { transform: translate(0, 0) scale(1); }
+      100% { transform: translate(40px, 60px) scale(1.1); }
+    }
+
+    @keyframes pulse-line {
+      0%   { height: 0;  opacity: 0;   transform: translateY(0); }
+      50%  { height: 60px; opacity: 0.5; transform: translateY(0); }
+      100% { height: 0;  opacity: 0;   transform: translateY(40px); }
+    }
+
+    #mistCanvas {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      z-index: 5;
+      pointer-events: none;
+      opacity: 0.5;
+    }
+
+    .corner-mark {
+      position: absolute;
+      width: 8px; height: 8px;
+      border: 0.5px solid var(--ink);
+      opacity: 0.3;
+    }
+    .top-left     { top: 20px;    left: 20px;  border-right: 0; border-bottom: 0; }
+    .top-right    { top: 20px;    right: 20px; border-left: 0;  border-bottom: 0; }
+    .bottom-left  { bottom: 20px; left: 20px;  border-right: 0; border-top: 0;    }
+    .bottom-right { bottom: 20px; right: 20px; border-left: 0;  border-top: 0;    }
+  </style>
+</head>
+<body>
+
+  <div class="ink-world" id="parallaxLayer">
+    <div class="haze-orb orb-1"></div>
+    <div class="haze-orb orb-2"></div>
+
+    <svg class="mountain mountain-1" viewBox="0 0 1000 400" preserveAspectRatio="none">
+      <path d="M0,400 Q150,100 300,250 T600,100 T1000,350 L1000,400 L0,400 Z"></path>
+    </svg>
+    <svg class="mountain mountain-2" viewBox="0 0 1000 400" preserveAspectRatio="none">
+      <path d="M0,400 Q200,150 400,300 T800,50 T1000,400 L0,400 Z"></path>
+    </svg>
+    <svg class="mountain mountain-3" viewBox="0 0 1000 400" preserveAspectRatio="none">
+      <path d="M0,400 Q250,50 500,200 T1000,100 L1000,400 L0,400 Z"></path>
+    </svg>
+
+    <canvas id="mistCanvas"></canvas>
+  </div>
+
+  <div class="corner-mark top-left"></div>
+  <div class="corner-mark top-right"></div>
+  <div class="corner-mark bottom-left"></div>
+  <div class="corner-mark bottom-right"></div>
+
+  <main class="stage">
+    <div class="metadata-top">
+      <div>
+        <p>The Method</p>
+      </div>
+      <div style="text-align: right">
+        <p>EN/中文</p>
+        <p style="margin-top: 4px; opacity: 0.6;">∞</p>
+      </div>
+    </div>
+
+    <div class="logo-container">
+      <span class="decor-star">
+        <svg width="24" height="24" viewBox="0 0 24 24" style="display: block; margin: 0 auto;">
+          <circle cx="12" cy="12" r="10" fill="currentColor"></circle>
+          <path d="M12 5.5 C12.5 9.5 14.5 11.5 18.5 12 C14.5 12.5 12.5 14.5 12 18.5 C11.5 14.5 9.5 12.5 5.5 12 C9.5 11.5 11.5 9.5 12 5.5 Z" fill="var(--bg)"></path>
+        </svg>
+      </span>
+      <h1 class="logo">六爻</h1>
+      <p class="logo-sub">LIU YAO<br>COIN CASTING</p>
+    </div>
+
+    <div class="bottom-action">
+      <span class="seal-script">上滑起心动念</span>
+      <div class="swipe-indicator"></div>
+    </div>
+  </main>
+
+  <script>
+    document.addEventListener('mousemove', (e) => {
+      const x = (window.innerWidth  / 2 - e.pageX) / 50;
+      const y = (window.innerHeight / 2 - e.pageY) / 50;
+      document.querySelector('.mountain-1').style.transform = `translateX(${x * 1.5}px) translateY(${y * 0.5}px)`;
+      document.querySelector('.mountain-2').style.transform = `translateX(${x * 2.5}px) translateY(${y * 1}px)`;
+      document.querySelector('.mountain-3').style.transform = `translateX(${x * 0.8}px) translateY(${y * 0.2}px)`;
+      document.querySelector('.orb-1').style.transform      = `translateX(${-x * 3}px) translateY(${-y * 2}px)`;
+    });
+
+    const canvas = document.getElementById('mistCanvas');
+    const ctx    = canvas.getContext('2d');
+    let particles = [];
+
+    function resize() {
+      canvas.width  = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    class Particle {
+      constructor() {
+        this.x = Math.random() * canvas.width;
+        this.y = Math.random() * canvas.height;
+        this.size    = Math.random() * 150 + 50;
+        this.speedX  = Math.random() * 0.5 - 0.25;
+        this.speedY  = Math.random() * 0.2 - 0.1;
+        this.opacity = Math.random() * 0.15;
+      }
+      update() {
+        this.x += this.speedX;
+        this.y += this.speedY;
+        if (this.x > canvas.width  + 100) this.x = -100;
+        if (this.x < -100)                this.x = canvas.width  + 100;
+        if (this.y > canvas.height + 100) this.y = -100;
+        if (this.y < -100)                this.y = canvas.height + 100;
+      }
+      draw() {
+        ctx.beginPath();
+        const gradient = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, this.size);
+        gradient.addColorStop(0, `rgba(255, 255, 255, ${this.opacity})`);
+        gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+        ctx.fillStyle = gradient;
+        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    for (let i = 0; i < 30; i++) particles.push(new Particle());
+
+    function animate() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      particles.forEach(p => { p.update(); p.draw(); });
+      requestAnimationFrame(animate);
+    }
+    animate();
+
+    window.addEventListener('touchmove', (e) => {
+      const touch = e.touches[0];
+      const x = (window.innerWidth  / 2 - touch.pageX) / 30;
+      const y = (window.innerHeight / 2 - touch.pageY) / 30;
+      document.querySelector('.mountain-2').style.transform = `translate(${x}px, ${y}px)`;
+    });
+  </script>
+</body>
+</html>
