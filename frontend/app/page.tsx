@@ -1,31 +1,31 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
-import { useRouter } from 'next/navigation'
 
 export default function HomePage() {
-  const canvasRef    = useRef<HTMLCanvasElement>(null)
-  const containerRef = useRef<HTMLDivElement>(null)
-  const exitingRef   = useRef(false)          // guard: prevent double-trigger
-  const router       = useRouter()
+  const canvasRef  = useRef<HTMLCanvasElement>(null)
+  const sliderRef  = useRef<HTMLDivElement>(null)
+  const sectionRef = useRef<'hero' | 'question'>('hero')
 
-  // Shared exit: add CSS animation class, then navigate
-  function triggerExit() {
-    if (exitingRef.current) return
-    exitingRef.current = true
-    containerRef.current?.classList.add('hero-exiting')
-    setTimeout(() => router.push('/question'), 500)
+  function goToQuestion() {
+    if (sectionRef.current === 'question') return
+    sectionRef.current = 'question'
+    sliderRef.current?.classList.add('home-at-question')
+  }
+
+  function goToHero() {
+    if (sectionRef.current === 'hero') return
+    sectionRef.current = 'hero'
+    sliderRef.current?.classList.remove('home-at-question')
   }
 
   useEffect(() => {
-    const canvas    = canvasRef.current
-    const container = containerRef.current
-    if (!canvas || !container) return
+    const canvas = canvasRef.current
+    if (!canvas) return
 
     const ctx = canvas.getContext('2d')
     if (!ctx) return
 
-    // ── canvas resize ──────────────────────────────────
     function resize() {
       canvas!.width  = window.innerWidth
       canvas!.height = window.innerHeight
@@ -33,7 +33,6 @@ export default function HomePage() {
     window.addEventListener('resize', resize)
     resize()
 
-    // ── particle mist ──────────────────────────────────
     const w = canvas
     const c = ctx
 
@@ -81,13 +80,11 @@ export default function HomePage() {
     }
     animate()
 
-    // ── parallax element refs (live in bg layer, outside containerRef) ──
     const m1 = document.querySelector<HTMLElement>('.hero-mountain-1')
     const m2 = document.querySelector<HTMLElement>('.hero-mountain-2')
     const m3 = document.querySelector<HTMLElement>('.hero-mountain-3')
     const o1 = document.querySelector<HTMLElement>('.hero-orb-1')
 
-    // ── mouse parallax (desktop) ───────────────────────
     function onMouseMove(e: MouseEvent) {
       const x = (window.innerWidth  / 2 - e.pageX) / 50
       const y = (window.innerHeight / 2 - e.pageY) / 50
@@ -98,13 +95,13 @@ export default function HomePage() {
     }
     document.addEventListener('mousemove', onMouseMove)
 
-    // ── mouse wheel (any direction) → exit (desktop) ─────
+    // Desktop: scroll down on hero → question; scroll up on question handled via postMessage
     function onWheel(e: WheelEvent) {
-      if (e.deltaY !== 0) triggerExit()
+      if (sectionRef.current === 'hero' && e.deltaY > 0) goToQuestion()
     }
     window.addEventListener('wheel', onWheel, { passive: true })
 
-    // ── touch parallax (mobile) ────────────────────────
+    // Mobile: touch parallax
     function onTouchMove(e: TouchEvent) {
       const t = e.touches[0]
       const x = (window.innerWidth  / 2 - t.pageX) / 30
@@ -113,33 +110,38 @@ export default function HomePage() {
     }
     window.addEventListener('touchmove', onTouchMove, { passive: true })
 
-    // ── swipe up → exit (mobile) ───────────────────────
+    // Mobile: swipe up on hero → question
     let touchStartY = 0
-    function onTouchStart(e: TouchEvent) {
-      touchStartY = e.touches[0].clientY
-    }
+    function onTouchStart(e: TouchEvent) { touchStartY = e.touches[0].clientY }
     function onTouchEnd(e: TouchEvent) {
-      if (touchStartY - e.changedTouches[0].clientY > 50) triggerExit()
+      const delta = touchStartY - e.changedTouches[0].clientY
+      if (sectionRef.current === 'hero' && delta > 50) goToQuestion()
     }
     window.addEventListener('touchstart', onTouchStart, { passive: true })
     window.addEventListener('touchend',   onTouchEnd)
 
+    // postMessage from ask.html iframe → go back to hero
+    function onMessage(e: MessageEvent) {
+      if (e.data?.type === 'back-to-hero') goToHero()
+    }
+    window.addEventListener('message', onMessage)
+
     return () => {
       cancelAnimationFrame(animId)
-      window.removeEventListener('resize', resize)
+      window.removeEventListener('resize',     resize)
       document.removeEventListener('mousemove', onMouseMove)
       window.removeEventListener('wheel',       onWheel)
       window.removeEventListener('touchmove',   onTouchMove)
       window.removeEventListener('touchstart',  onTouchStart)
       window.removeEventListener('touchend',    onTouchEnd)
+      window.removeEventListener('message',     onMessage)
     }
-  }, [router])  // eslint-disable-line react-hooks/exhaustive-deps
+  }, [])  // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    /* Static parchment shell — stays fixed, never animates */
     <div className="hero-page">
 
-      {/* ── Background layer: mountains + mist — pinned, never moves ── */}
+      {/* ── Fixed background: mountains + mist — never moves ── */}
       <div className="hero-ink-world">
         <div className="hero-orb hero-orb-1" />
         <div className="hero-orb hero-orb-2" />
@@ -157,49 +159,56 @@ export default function HomePage() {
         <canvas ref={canvasRef} className="hero-mist-canvas" />
       </div>
 
-      {/* ── Foreground layer: text + logo + CTA — slides up on exit ── */}
-      <div className="hero-content" ref={containerRef}>
+      {/* ── Slider: hero section + question section stacked ── */}
+      <div className="home-slider" ref={sliderRef}>
 
-      {/* ── Corner marks ── */}
-      <div className="hero-corner hero-corner-tl" />
-      <div className="hero-corner hero-corner-tr" />
-      <div className="hero-corner hero-corner-bl" />
-      <div className="hero-corner hero-corner-br" />
+        {/* Section 1: Hero content only (background is fixed above) */}
+        <div className="home-section">
+          <div className="hero-content">
+            <div className="hero-corner hero-corner-tl" />
+            <div className="hero-corner hero-corner-tr" />
+            <div className="hero-corner hero-corner-bl" />
+            <div className="hero-corner hero-corner-br" />
 
-      {/* ── Stage ── */}
-      <main className="hero-stage">
-        <div className="hero-metadata">
-          <div><p>The Method</p></div>
-          <div style={{ textAlign: 'right' }}>
-            <p>EN/中文</p>
-            <p style={{ marginTop: 4, opacity: 0.6 }}>∞</p>
+            <main className="hero-stage">
+              <div className="hero-metadata">
+                <div><p>The Method</p></div>
+                <div style={{ textAlign: 'right' }}>
+                  <p>EN/中文</p>
+                  <p style={{ marginTop: 4, opacity: 0.6 }}>∞</p>
+                </div>
+              </div>
+
+              <div className="hero-logo-container">
+                <span className="hero-decor-star">
+                  <svg width="24" height="24" viewBox="0 0 24 24" style={{ display: 'block', margin: '0 auto' }}>
+                    <circle cx="12" cy="12" r="10" fill="currentColor" />
+                    <path
+                      d="M12 5.5 C12.5 9.5 14.5 11.5 18.5 12 C14.5 12.5 12.5 14.5 12 18.5 C11.5 14.5 9.5 12.5 5.5 12 C9.5 11.5 11.5 9.5 12 5.5 Z"
+                      fill="#F1EFE9"
+                    />
+                  </svg>
+                </span>
+                <h1 className="hero-logo">六爻</h1>
+                <p className="hero-logo-sub">
+                  LIU YAO<br />COIN CASTING
+                </p>
+              </div>
+
+              <div className="hero-bottom-action" onClick={goToQuestion}>
+                <span className="hero-seal">上滑起心动念</span>
+                <div className="hero-swipe-line" />
+              </div>
+            </main>
           </div>
         </div>
 
-        <div className="hero-logo-container">
-          <span className="hero-decor-star">
-            <svg width="24" height="24" viewBox="0 0 24 24" style={{ display: 'block', margin: '0 auto' }}>
-              <circle cx="12" cy="12" r="10" fill="currentColor" />
-              <path
-                d="M12 5.5 C12.5 9.5 14.5 11.5 18.5 12 C14.5 12.5 12.5 14.5 12 18.5 C11.5 14.5 9.5 12.5 5.5 12 C9.5 11.5 11.5 9.5 12 5.5 Z"
-                fill="#F1EFE9"
-              />
-            </svg>
-          </span>
-          <h1 className="hero-logo">六爻</h1>
-          <p className="hero-logo-sub">
-            LIU YAO<br />COIN CASTING
-          </p>
+        {/* Section 2: Question (iframe preloaded) */}
+        <div className="home-section">
+          <iframe src="/ask.html" style={{ width: '100%', height: '100%', border: 'none', display: 'block', background: 'transparent' }} />
         </div>
 
-        {/* Click on the bottom CTA is the desktop fallback */}
-        <div className="hero-bottom-action" onClick={triggerExit}>
-          <span className="hero-seal">上滑起心动念</span>
-          <div className="hero-swipe-line" />
-        </div>
-      </main>
-
-    </div>
+      </div>
     </div>
   )
 }

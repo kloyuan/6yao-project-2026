@@ -32,68 +32,9 @@
             width: 100%;
             height: 100%;
             overflow: hidden;
-            background-color: var(--bg);
+            background: transparent;
             font-family: var(--font-main);
             color: var(--ink);
-        }
-
-        .ink-world {
-            position: absolute;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
-            z-index: 1;
-            overflow: hidden;
-        }
-
-        .mountain {
-            position: absolute;
-            bottom: -10%;
-            width: 150%;
-            left: -25%;
-            filter: blur(40px);
-            opacity: 0.4;
-            transition: transform 0.1s ease-out;
-            pointer-events: none;
-        }
-
-        .mountain-1 { height: 60%; fill: var(--accent); z-index: 2; bottom: -5%; }
-        .mountain-2 { height: 45%; fill: var(--ink);    z-index: 3; bottom: -10%; opacity: 0.6; }
-        .mountain-3 { height: 30%; fill: #88969b;        z-index: 1; bottom: 5%;  opacity: 0.3; }
-
-        .haze-orb {
-            position: absolute;
-            border-radius: 50%;
-            filter: blur(80px);
-            z-index: 4;
-            mix-blend-mode: multiply;
-        }
-
-        .orb-1 {
-            width: 300px; height: 300px;
-            background: var(--haze);
-            top: 20%; left: -10%;
-            animation: drift 20s infinite alternate;
-        }
-
-        .orb-2 {
-            width: 400px; height: 400px;
-            background: rgba(44, 58, 79, 0.15);
-            bottom: 10%; right: -20%;
-            animation: drift 25s infinite alternate-reverse;
-        }
-
-        @keyframes drift {
-            0%   { transform: translate(0, 0) scale(1); }
-            100% { transform: translate(40px, 60px) scale(1.1); }
-        }
-
-        #mistCanvas {
-            position: absolute;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
-            z-index: 5;
-            pointer-events: none;
-            opacity: 0.5;
         }
 
         .corner-mark {
@@ -263,21 +204,6 @@
 </head>
 <body>
 
-    <div class="ink-world">
-        <div class="haze-orb orb-1"></div>
-        <div class="haze-orb orb-2"></div>
-        <svg class="mountain mountain-1" viewBox="0 0 1000 400" preserveAspectRatio="none">
-            <path d="M0,400 Q150,100 300,250 T600,100 T1000,350 L1000,400 L0,400 Z"></path>
-        </svg>
-        <svg class="mountain mountain-2" viewBox="0 0 1000 400" preserveAspectRatio="none">
-            <path d="M0,400 Q200,150 400,300 T800,50 T1000,400 L0,400 Z"></path>
-        </svg>
-        <svg class="mountain mountain-3" viewBox="0 0 1000 400" preserveAspectRatio="none">
-            <path d="M0,400 Q250,50 500,200 T1000,100 L1000,400 L0,400 Z"></path>
-        </svg>
-        <canvas id="mistCanvas"></canvas>
-    </div>
-
     <div class="corner-mark top-left"></div>
     <div class="corner-mark top-right"></div>
     <div class="corner-mark bottom-left"></div>
@@ -338,54 +264,6 @@
             });
         });
 
-        // ── Mist canvas ────────────────────────────────────
-        const canvas = document.getElementById('mistCanvas');
-        const ctx = canvas.getContext('2d');
-        const particles = [];
-
-        function resize() {
-            canvas.width  = window.innerWidth;
-            canvas.height = window.innerHeight;
-        }
-        window.addEventListener('resize', resize);
-        resize();
-
-        class Particle {
-            constructor() {
-                this.x       = Math.random() * canvas.width;
-                this.y       = Math.random() * canvas.height;
-                this.size    = Math.random() * 150 + 50;
-                this.speedX  = Math.random() * 0.5 - 0.25;
-                this.speedY  = Math.random() * 0.2 - 0.1;
-                this.opacity = Math.random() * 0.15;
-            }
-            update() {
-                this.x += this.speedX;
-                this.y += this.speedY;
-                if (this.x > canvas.width  + 100) this.x = -100;
-                if (this.x < -100)                this.x = canvas.width  + 100;
-                if (this.y > canvas.height + 100) this.y = -100;
-                if (this.y < -100)                this.y = canvas.height + 100;
-            }
-            draw() {
-                ctx.beginPath();
-                const g = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, this.size);
-                g.addColorStop(0, `rgba(255,255,255,${this.opacity})`);
-                g.addColorStop(1, 'rgba(255,255,255,0)');
-                ctx.fillStyle = g;
-                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-                ctx.fill();
-            }
-        }
-
-        for (let i = 0; i < 30; i++) particles.push(new Particle());
-
-        (function animate() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            particles.forEach(p => { p.update(); p.draw(); });
-            requestAnimationFrame(animate);
-        })();
-
         // ── Session token ──────────────────────────────────
         function getSessionToken() {
             const key = 'liu_yao_session';
@@ -402,6 +280,23 @@
 
         const submitBtn = document.getElementById('submitBtn');
         const errorMsg  = document.getElementById('errorMsg');
+
+        // ── Back to hero ───────────────────────────────────
+        // Desktop: scroll up → notify parent to slide back
+        window.addEventListener('wheel', (e) => {
+            if (e.deltaY < 0) window.parent.postMessage({ type: 'back-to-hero' }, '*');
+        }, { passive: true });
+
+        // Mobile: swipe down → notify parent to slide back
+        let _backTouchY = 0;
+        window.addEventListener('touchstart', (e) => {
+            _backTouchY = e.touches[0].clientY;
+        }, { passive: true });
+        window.addEventListener('touchend', (e) => {
+            if (e.changedTouches[0].clientY - _backTouchY > 50) {
+                window.parent.postMessage({ type: 'back-to-hero' }, '*');
+            }
+        });
 
         submitBtn.addEventListener('click', async () => {
             const question = document.getElementById('questionInput').value.trim();
