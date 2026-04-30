@@ -13,3 +13,5 @@ backend/.env
 frontend/.env
 frontend/.env.local
 .DS_Store
+frontend/.next/
+.DS_Store
