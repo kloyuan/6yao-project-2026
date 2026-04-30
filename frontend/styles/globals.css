@@ -39,3 +39,205 @@ html, body {
 .gold-divider {
   @apply border-amber-700/40;
 }
+
+/* ─── Hero page (light parchment theme) ───────────────── */
+.hero-page {
+  --hero-bg: #F1EFE9;
+  --hero-ink: #1A1A1B;
+  --hero-accent: #2C3A4F;
+  --hero-haze: rgba(212, 223, 208, 0.6);
+
+  /* Static background shell — never animates, always covers body dark bg */
+  position: fixed;
+  inset: 0;
+  background-color: var(--hero-bg);
+  color: var(--hero-ink);
+  -webkit-font-smoothing: antialiased;
+  z-index: 50;
+}
+
+/* Animated content layer — this is what slides up on exit */
+.hero-content {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.hero-ink-world {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  z-index: 1;
+  overflow: hidden;
+}
+
+.hero-mountain {
+  position: absolute;
+  bottom: -10%;
+  width: 150%;
+  left: -25%;
+  filter: blur(40px);
+  opacity: 0.4;
+  transition: transform 0.1s ease-out;
+  pointer-events: none;
+}
+.hero-mountain-1 { height: 60%; fill: var(--hero-accent); z-index: 2; bottom: -5%; }
+.hero-mountain-2 { height: 45%; fill: var(--hero-ink);    z-index: 3; bottom: -10%; opacity: 0.6; }
+.hero-mountain-3 { height: 30%; fill: #88969b;             z-index: 1; bottom: 5%;  opacity: 0.3; }
+
+.hero-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  z-index: 4;
+  mix-blend-mode: multiply;
+  pointer-events: none;
+}
+.hero-orb-1 {
+  width: 300px; height: 300px;
+  background: var(--hero-haze);
+  top: 20%; left: -10%;
+  animation: heroDrift 20s infinite alternate;
+}
+.hero-orb-2 {
+  width: 400px; height: 400px;
+  background: rgba(44, 58, 79, 0.15);
+  bottom: 10%; right: -20%;
+  animation: heroDrift 25s infinite alternate-reverse;
+}
+
+.hero-mist-canvas {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  z-index: 5;
+  pointer-events: none;
+  opacity: 0.5;
+}
+
+.hero-corner {
+  position: absolute;
+  width: 8px; height: 8px;
+  border: 0.5px solid var(--hero-ink);
+  opacity: 0.3;
+  z-index: 20;
+  pointer-events: none;
+}
+.hero-corner-tl { top: 20px;    left: 20px;  border-right: none; border-bottom: none; }
+.hero-corner-tr { top: 20px;    right: 20px; border-left: none;  border-bottom: none; }
+.hero-corner-bl { bottom: 20px; left: 20px;  border-right: none; border-top: none;    }
+.hero-corner-br { bottom: 20px; right: 20px; border-left: none;  border-top: none;    }
+
+.hero-stage {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+  padding: 40px 24px;
+  z-index: 10;
+}
+
+.hero-metadata {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  opacity: 0.6;
+}
+
+.hero-logo-container {
+  position: absolute;
+  top: 45%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  z-index: 20;
+  pointer-events: none;
+}
+
+.hero-logo {
+  font-family: "Noto Serif SC", "Source Han Serif CN", "Noto Serif CJK SC", serif;
+  font-size: 52px;
+  font-weight: 200;
+  letter-spacing: 0.5em;
+  padding-left: 0.5em;
+  color: var(--hero-ink);
+  position: relative;
+  text-shadow: 0 0 40px rgba(255, 255, 255, 0.8);
+}
+.hero-logo::after {
+  content: '';
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 140%; height: 140%;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.4) 0%, transparent 70%);
+  z-index: -1;
+  pointer-events: none;
+}
+
+.hero-logo-sub {
+  margin-top: 12px;
+  font-size: 9px;
+  letter-spacing: 0.8em;
+  text-transform: uppercase;
+  opacity: 0.4;
+  line-height: 1.6;
+  font-family: "Noto Serif SC", "Source Han Serif CN", serif;
+}
+
+.hero-bottom-action {
+  text-align: center;
+  z-index: 20;
+}
+
+.hero-seal {
+  font-family: "Noto Serif SC", "Source Han Serif CN", serif;
+  font-size: 14px;
+  letter-spacing: 0.3em;
+  color: var(--hero-ink);
+  opacity: 0.7;
+  margin-bottom: 24px;
+  display: block;
+}
+
+.hero-swipe-line {
+  width: 1px;
+  height: 60px;
+  background: linear-gradient(to bottom, var(--hero-ink), transparent);
+  margin: 0 auto;
+  animation: heroPulseLine 4s infinite ease-in-out;
+}
+
+.hero-decor-star {
+  font-size: 12px;
+  margin-bottom: 8px;
+  display: block;
+}
+
+@keyframes heroDrift {
+  0%   { transform: translate(0, 0) scale(1); }
+  100% { transform: translate(40px, 60px) scale(1.1); }
+}
+
+@keyframes heroPulseLine {
+  0%   { height: 0;    opacity: 0;   transform: translateY(0); }
+  50%  { height: 60px; opacity: 0.5; transform: translateY(0); }
+  100% { height: 0;    opacity: 0;   transform: translateY(40px); }
+}
+
+.hero-content.hero-exiting {
+  pointer-events: none;
+  animation: heroExit 0.55s cubic-bezier(0.4, 0, 0.6, 1) forwards;
+}
+
+@keyframes heroExit {
+  0%   { transform: translateY(0)        scale(1);    opacity: 1;    }
+  100% { transform: translateY(-100vh)   scale(0.97); opacity: 0.85; }
+}
