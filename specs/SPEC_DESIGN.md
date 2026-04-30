@@ -150,8 +150,9 @@ flowchart LR
 
 ```mermaid
 flowchart TD
-    IN[解读请求\n卦象 + 问题 + 分类]
-    IN --> CL[ContextLoader\n加载卦象上下文]
+    IN[解读请求\n卦象 + 问题 + 分类 + 时间上下文\n月建 / 日辰 / 旬空]
+    IN --> RE[RuleEngine\n派生各爻时间状态\nLineNajiaState + LineTimeState]
+    RE --> CL[ContextLoader\n加载卦象上下文 + 爻时间状态]
     CL --> PB[PromptBuilder\n组装 Prompt]
     PB --> LP[LLMProvider\nClaude / DeepSeek]
     LP -- 成功 --> OUT[解读输出]
@@ -198,12 +199,18 @@ flowchart TD
 | id | UUID | 主键 |
 | question | text | 用户问题 |
 | category | enum | 感情 / 事业 / 财运 / 学业 / 合作 / 健康 / 寻物 / 其他 |
-| timeframe | text | 可选，时间范围 |
+| timeframe | text | 可选，用户填写的关注时效 |
 | session_token | text | MVP 匿名标识；P1 替换为 user_id |
 | base_hexagram | int | 本卦编号（1-64） |
 | changed_hexagram | int | 变卦编号（1-64），无动爻时与本卦相同 |
 | changing_lines | int[] | 动爻位置列表（如 `[2, 5]`） |
-| created_at | timestamp | 创建时间 |
+| cast_datetime | timestamptz | **起卦时间**：用户第一次正式抛币的时刻，解卦引擎核心输入 |
+| timezone | varchar | 用户时区，如 `America/Vancouver`，由客户端自动获取 |
+| month_branch | varchar | 月建地支（以节气为分界），如 `寅` |
+| day_stem_branch | varchar | 日干支，如 `甲子` |
+| day_branch | varchar | 日辰地支，如 `子` |
+| void_branches | varchar[] | 旬空地支，如 `["戌", "亥"]` |
+| created_at | timestamptz | 问题提交时间 |
 
 ### 4.2 DivinationLine（单爻记录）
 
@@ -216,6 +223,29 @@ flowchart TD
 | coin_sum | int | 总和（6 / 7 / 8 / 9） |
 | line_type | enum | 老阴 / 少阳 / 少阴 / 老阳 |
 | is_changing | bool | 是否为动爻 |
+
+**纳甲映射字段（LineNajiaState）**  
+> 由纳甲规则从爻位 + 本卦编号派生，与时间无关。
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| branch | varchar | 纳甲地支，如 `午` |
+| element | varchar | 该地支对应五行，如 `火` |
+
+**每爻时间状态字段（LineTimeState）**  
+> 需结合 `LineNajiaState.branch` 与 Divination 的时间上下文（`month_branch`、`day_branch`、`void_branches`）运行时派生。  
+> MVP 阶段由 RuleEngine 在解卦时计算，不强制落库；后续如需提升可审计性或复盘能力，可扩展为持久化字段。
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| is_void | bool | 是否旬空，即 `branch` 命中 `void_branches` |
+| is_month_broken | bool | 是否月破，即 `branch` 被 `month_branch` 冲 |
+| is_day_clashed | bool | 是否被日辰冲，即 `branch` 被 `day_branch` 冲 |
+| is_day_combined | bool | 是否与日辰六合 |
+| is_day_matched | bool | 是否临日 / 值日，即 `branch == day_branch` |
+| is_secretly_moving | bool | 是否暗动：`!is_changing && branch` 被 `day_branch` 冲；静爻专属状态 |
+| strength_by_month | enum | 旺 / 相 / 休 / 囚 / 死，由 `element` 与月建五行的生克关系得出 |
+| time_triggers | varchar[] | 可能的应期线索，如 `["出空之日", "逢午之日"]` |
 
 ### 4.3 Interpretation（解读结果）
 
@@ -332,6 +362,7 @@ MVP 不实现多解读模式、多语言、缓存层。所有请求走单一路�
 | | 多解读模式（classical / modern / strategic / emotional） |
 | | 历史记录页（需登录，JWT） |
 | | 规则说明页（零基础入门引导） |
+| | LineTimeState 持久化：将 `is_void`、`strength_by_month` 等爻时间状态字段落库，支持可审计复盘 |
 | v3 | 用户认证与账号体系 |
 | | 国际化（zh-TW / zh-HK / en / ko） |
 | | Prompt 缓存（降低 LLM 调用成本） |

@@ -98,26 +98,22 @@
     /* ── Sticky header ────────────────────────────────── */
     .header {
       position: sticky; top: 0; z-index: 30;
-      display: flex; justify-content: space-between; align-items: center;
-      padding: 18px 24px 14px;
-      max-width: 680px; margin: 0 auto;
+      display: flex; justify-content: space-between; align-items: flex-start;
+      padding: 32px 32px 14px;
       background: linear-gradient(to bottom, rgba(241,239,233,0.9) 70%, transparent);
       backdrop-filter: blur(6px);
       -webkit-backdrop-filter: blur(6px);
+      font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase;
     }
 
-    .back-icon {
-      width: 36px; height: 36px;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 20px; cursor: pointer; opacity: 0.55;
-      transition: opacity 0.2s;
+    .header-col {
+      display: flex; flex-direction: column; gap: 4px; opacity: 0.6;
     }
-    .back-icon:hover { opacity: 1; }
 
-    .header-title {
-      font-family: var(--font-serif);
-      font-size: 13px; letter-spacing: 0.25em; opacity: 0.65;
-    }
+    .header-col-center { text-align: center; font-family: var(--font-serif); font-size: 12px; letter-spacing: 0.2em; text-transform: none; }
+    .header-col-right  { text-align: right; }
+
+    .header-reset { cursor: pointer; }
 
     /* ── Glass panel ──────────────────────────────────── */
     .panel {
@@ -332,9 +328,13 @@
 
 <main class="stage">
   <div class="header">
-    <div class="back-icon" id="backBtn">←</div>
-    <span class="header-title">卦象解读</span>
-    <span id="resetBtn" style="font-size:10px;letter-spacing:0.2em;opacity:0.6;cursor:pointer;">重置∞</span>
+    <div class="header-col"><p>The Method</p></div>
+    <div class="header-col header-col-center"><p>卦象解读</p></div>
+    <div class="header-col header-col-right">
+      <p>EN/中文</p>
+      <p>∞</p>
+      <p class="header-reset" id="resetBtn">重置</p>
+    </div>
   </div>
 
   <div class="wrap" id="root">
@@ -352,11 +352,6 @@ const DID   = new URLSearchParams(window.location.search).get('id');
 const LBLS  = ['初爻','二爻','三爻','四爻','五爻','上爻'];
 
 // ── Navigation ────────────────────────────────────────────
-document.getElementById('backBtn').addEventListener('click', () => {
-  const top = window.parent !== window ? window.parent : window;
-  top.location.href = '/';
-});
-
 document.getElementById('resetBtn').addEventListener('click', () => {
   const top = window.parent !== window ? window.parent : window;
   top.location.href = '/';

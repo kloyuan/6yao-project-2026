@@ -55,9 +55,10 @@
 | Task 1 — 环境配置与本地启动说明 | Supabase 连接、.env 变量说明（前后端）、LLM API Keys 配置、本地运行步骤 | 无 |
 | Task 2 — 业务数据表结构初始化（DDL） | 建 Divination / DivinationLine / Interpretation / FollowupConversation / FollowupMessage 五张表，含索引 | Task 1 |
 | Task 3 — Hexagram 静态参考数据文件 | 编写 64 卦 JSON，封装查询工具函数 | 无 |
-| Task 4 — RuleEngine | CoinMapper（硬币→爻）、HexagramGen（爻→卦）纯函数，含单元测试；HexagramGen 使用 Task 3 的映射表，函数本身保持无 IO | Task 3 |
-| Task 5 — DivinationService 与起卦接口 | POST /divinations、POST /divinations/{id}/lines、GET /divinations/{id}/result | Task 2、Task 4 |
-| Task 6 — 解读共享能力实现（ContextLoader / PromptBuilder / LLMProvider） | ContextLoader（HexagramContext / ChatContext）、PromptBuilder（依赖 Task 4 输出结构）、LLMProvider（Claude 主 + DeepSeek 备用） | Task 2、Task 3、Task 4 |
+| Task 4A — Implement core hexagram RuleEngine | CoinMapper（硬币→爻）、HexagramGen（爻→本卦 / 变卦）、动爻检测，含单元测试 | Task 3 |
+| Task 4B — Implement NaJia and time context RuleEngine | NaJiaMapper（hexagram_id + line_number → branch / element）、TimeContextEngine（cast_datetime + timezone → 月建 / 日辰 / 旬空）、TimeStateCalculator（运行时派生 LineTimeState，不落库） | Task 3 |
+| Task 5 — DivinationService 与起卦接口 | POST /divinations、POST /divinations/{id}/lines（首次抛币时记录 cast_datetime + timezone，服务端派生时间字段存库）、GET /divinations/{id}/result | Task 2、Task 4A、Task 4B |
+| Task 6 — 解读共享能力实现（ContextLoader / PromptBuilder / LLMProvider） | ContextLoader（HexagramContext 含时间上下文 / ChatContext）、PromptBuilder（依赖 Task 4A/4B 输出结构）、LLMProvider（Claude 主 + DeepSeek 备用） | Task 2、Task 3、Task 4A、Task 4B |
 | Task 7 — InterpretationService 与解读接口 | POST /divinations/{id}/interpret；LLM 不可用时返回错误 | Task 5、Task 6 |
 | Task 8 — FollowupService 与追问接口 | ConversationManager（历史存取、20 轮计数）、POST /divinations/{id}/followup、GET /divinations/{id}/followup | Task 5、Task 6 |
 
@@ -114,7 +115,7 @@
 
 **Dependencies:** Task 1
 
-**What:** 编写 DDL，创建 5 张业务表：`divinations`、`divination_lines`、`interpretations`、`followup_conversations`、`followup_messages`。包含主键、外键约束、枚举类型定义与常用查询字段的索引。字段定义与枚举约束须与 `SPEC_DESIGN.md` 第 4 章保持一致。将 migration 应用到 Supabase。
+**What:** 编写 DDL，创建 5 张业务表：`divinations`、`divination_lines`、`interpretations`、`followup_conversations`、`followup_messages`。包含主键、外键约束、枚举类型定义与常用查询字段的索引。字段定义与枚举约束须与 `SPEC_DESIGN.md` 第 4 章保持一致。`divinations` 表须包含时间上下文字段（`cast_datetime`、`timezone`、`month_branch`、`day_stem_branch`、`day_branch`、`void_branches`）；`divination_lines` 须包含纳甲字段（`branch`、`element`）。LineTimeState（`is_void` 等）为运行时派生，MVP 阶段**不落库**。将 migration 应用到 Supabase。
 
 **Files:**
 - `backend/migrations/001_create_tables.sql`
@@ -137,7 +138,7 @@
 
 **Dependencies:** None
 
-**What:** 编写包含 64 卦完整数据的 JSON 文件，字段按 `SPEC_DESIGN.md` 4.6 定义（`hexagram_id`、`name`、`trigrams`、`binary_code`、`palace`、`world_line`、`response_line`、`fortune_level`、`meaning`）。封装两个查询工具函数：按 `hexagram_id` 查询（供 ContextLoader 使用）、按 `binary_code` 查询（供 HexagramGen 使用）。JSON 文件在模块初始化时一次性加载，查询函数本身无 IO。
+**What:** 编写包含 64 卦完整数据的 JSON 文件，字段按 `SPEC_DESIGN.md` 4.6 定义（`hexagram_id`、`name`、`trigrams`、`binary_code`、`palace`、`world_line`、`response_line`、`fortune_level`、`meaning`），并为每卦每爻补充纳甲映射数据（第 1–6 爻各自对应的地支 `branch` 与五行 `element`）。封装三个查询工具函数：按 `hexagram_id` 查询卦象、按 `binary_code` 查询卦象（供 HexagramGen 使用）、按 `hexagram_id + line_number` 查询纳甲地支（供 NaJiaMapper 使用）。JSON 文件在模块初始化时一次性加载，查询函数本身无 IO。
 
 **Files:**
 - `backend/data/hexagrams.json`
@@ -156,7 +157,7 @@
 
 ---
 
-### T4: Implement RuleEngine
+### T4A: Implement core hexagram RuleEngine
 
 **Dependencies:** Task 3
 
@@ -179,11 +180,37 @@
 
 ---
 
+### T4B: Implement NaJia and time context RuleEngine
+
+**Dependencies:** Task 3
+
+**What:** 实现三个纯函数模块。`NaJiaMapper`：从 Task 3 加载纳甲映射表，按 (hexagram_id, line_number) 返回地支 `branch` 与五行 `element`。`TimeContextEngine`：接收 `cast_datetime`（ISO 8601）+ `timezone`，派生月建（`month_branch`）、日干支（`day_stem_branch`）、日辰（`day_branch`）、旬空（`void_branches`）。`TimeStateCalculator`：接收 `branch` + 时间上下文，计算 `LineTimeState`（`is_void`、`is_month_broken`、`is_day_clashed`、`is_day_combined`、`is_day_matched`、`is_secretly_moving`、`strength_by_month`、`time_triggers`）；所有计算为运行时派生，不写库。
+
+**Files:**
+- `backend/app/core/najia_engine.py`
+- `backend/tests/test_najia_engine.py`
+
+**Tests:**
+- NaJiaMapper：已知卦象爻位返回正确地支（如乾卦初爻 → `子`）
+- NaJiaMapper：非法 hexagram_id 或 line_number 抛出异常
+- TimeContextEngine：给定 cast_datetime + timezone 返回正确月建、日辰、旬空
+- TimeContextEngine：跨节气边界（节气当天）返回正确月建
+- TimeStateCalculator：旬空爻 → `is_void == True`
+- TimeStateCalculator：被日辰冲的静爻 → `is_secretly_moving == True`
+- TimeStateCalculator：五行旺相休囚 → `strength_by_month` 值正确
+
+**Verify:**
+- `pytest backend/tests/test_najia_engine.py` 全部通过
+- 全部函数无数据库调用、无文件 IO（可通过 mock 验证）
+- LineTimeState 字段不出现在任何 DDL 或数据库写入路径中
+
+---
+
 ### T5: Implement DivinationService and divination APIs
 
 **Dependencies:** Task 2, Task 4
 
-**What:** 实现 `DivinationService`，编排起卦流程。实现 3 个接口：`POST /divinations`（创建起卦记录，返回 `divination_id`）、`POST /divinations/{id}/lines`（提交单爻抛币结果，立即持久化，返回 `line_type` / `is_changing`）、`GET /divinations/{id}/result`（返回完整盘面：`base_hexagram`、`changed_hexagram`、`changing_lines`、全部 6 条爻记录）。
+**What:** 实现 `DivinationService`，编排起卦流程。实现 3 个接口：`POST /divinations`（创建起卦记录，返回 `divination_id`）、`POST /divinations/{id}/lines`（提交单爻抛币结果，立即持久化，返回 `line_type` / `is_changing` / `branch` / `element`；第 1 爻请求须携带 `cast_datetime` 和 `timezone`，服务端调用 `TimeContextEngine` 派生时间字段并写入 `divinations` 表）、`GET /divinations/{id}/result`（返回完整盘面：`base_hexagram`、`changed_hexagram`、`changing_lines`、全部 6 条爻记录；每条爻附带运行时计算的 `LineTimeState`，不从数据库读取）。
 
 **Files:**
 - `backend/app/services/divination_service.py`
@@ -348,7 +375,7 @@
 
 **Dependencies:** Task 11
 
-**What:** 实现起卦页，逐爻引导用户完成 6 次抛掷。每次抛掷后立即展示该爻属性（老阴 / 少阳 / 少阴 / 老阳）并显示进度（如"第 3 爻 / 共 6 爻"）。用户不可跳过或修改已完成的爻。每次抛掷完成后调用 `POST /divinations/{id}/lines` 持久化，页面刷新后已完成爻从服务端恢复。第 6 爻提交后跳转至结果页。
+**What:** 实现起卦页，逐爻引导用户完成 6 次抛掷。用户点击按钮随机生成三枚硬币结果，立即展示该爻属性（老阴 / 少阳 / 少阴 / 老阳）并更新进度（如"第 3 爻 / 共 6 爻"）。用户不可跳过或修改已完成的爻。每次抛掷完成后调用 `POST /divinations/{id}/lines` 持久化；**第 1 爻请求须同时携带 `cast_datetime`（抛币时刻的客户端 ISO 8601 时间戳）和 `timezone`（`Intl.DateTimeFormat().resolvedOptions().timeZone`）**。页面刷新后已完成爻从服务端恢复。第 6 爻提交后跳转至结果页。
 
 **Files:**
 - `frontend/app/divination/[id]/page.tsx`
@@ -462,4 +489,5 @@
 
 ## 更新日志
 
+- **v1.1** (2026-04-30)：响应 SPEC_REQUIREMENT v1.5 / SPEC_DESIGN v1.2；T4 拆为 T4A（核心卦象）和 T4B（纳甲 + 时间上下文）；T2 DDL 新增时间字段与纳甲字段（LineTimeState 不落库）；T3 纳甲数据补充；T5 DivinationService 新增 cast_datetime/timezone 捕获；T12 起卦页新增时间字段采集
 - **v1.0** (2026-04-26)：初版 Implementation Spec，确定约束条件与任务目录（A/B/C/D 四组，共 15 个 MVP Task + 1 个 P1 Task）

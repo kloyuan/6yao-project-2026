@@ -161,14 +161,12 @@
             top: 32px;
             left: 32px;
             right: 32px;
-            height: 32px;
             display: flex;
             justify-content: space-between;
-            align-items: center;
+            align-items: flex-start;
             font-size: 10px;
             letter-spacing: 0.2em;
             text-transform: uppercase;
-            opacity: 0.6;
             z-index: 100;
             pointer-events: none;
         }
@@ -177,9 +175,27 @@
             pointer-events: auto;
         }
 
-        .reset-btn {
+        .header-col {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            opacity: 0.6;
+        }
+
+        .header-col-center {
+            text-align: center;
+            font-family: var(--font-serif);
+            font-size: 12px;
+            letter-spacing: 0.2em;
+            text-transform: none;
+        }
+
+        .header-col-right {
+            text-align: right;
+        }
+
+        .header-reset {
             cursor: pointer;
-            font-family: var(--font-main);
         }
 
         .progress-indicator {
@@ -594,8 +610,13 @@
 
     
         <header class="header">
-            <div></div>
-            <span class="reset-btn" id="resetBtn">重置∞</span>
+            <div class="header-col"><p>The Method</p></div>
+            <div class="header-col header-col-center"><p>起卦</p></div>
+            <div class="header-col header-col-right">
+                <p>EN/中文</p>
+                <p>∞</p>
+                <p class="header-reset" id="resetBtn">重置</p>
+            </div>
         </header>
 
 <main class="stage" vid="25">
