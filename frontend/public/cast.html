@@ -807,7 +807,7 @@
 
         
         // ── Navigation & API glue ─────────────────────────────
-        const API_URL = window.location.hostname === 'localhost' ? 'http://localhost:8000' : '';
+        const API_URL = window.location.hostname === 'localhost' ? 'http://localhost:8000' : 'https://6yao-project-2026-production.up.railway.app';
         const divinationId = new URLSearchParams(window.location.search).get('id');
 
         function navigate(path) {
