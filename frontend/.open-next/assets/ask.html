@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>起心动念 | Liu Yao</title>
+
+    <style>
+        :root {
+            --bg: #F1EFE9;
+            --ink: #1A1A1B;
+            --accent: #2C3A4F;
+            --seal: #A63D33;
+            --haze: rgba(212, 223, 208, 0.6);
+            --slate-mist: #6F7A7C;
+            --font-main: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+            --font-serif: "Source Han Serif CN", "Noto Serif CJK SC", serif;
+            --glass-bg: rgba(255, 255, 255, 0.25);
+            --glass-border: rgba(255, 255, 255, 0.4);
+            --radius-main: clamp(16px, 2vw, 28px);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-font-smoothing: antialiased;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: transparent;
+            font-family: var(--font-main);
+            color: var(--ink);
+        }
+
+        .corner-mark {
+            position: absolute;
+            width: 8px; height: 8px;
+            border: 0.5px solid var(--ink);
+            opacity: 0.3;
+            z-index: 10;
+        }
+        .top-left     { top: 20px;    left: 20px;  border-right: 0; border-bottom: 0; }
+        .top-right    { top: 20px;    right: 20px; border-left: 0;  border-bottom: 0; }
+        .bottom-left  { bottom: 20px; left: 20px;  border-right: 0; border-top: 0;    }
+        .bottom-right { bottom: 20px; right: 20px; border-left: 0;  border-top: 0;    }
+
+        .stage {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            padding: 40px 24px;
+            z-index: 10;
+            overflow-y: auto;
+            scroll-behavior: smooth;
+        }
+
+        .glass-panel {
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-main);
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.05);
+        }
+
+        .section-title {
+            font-family: var(--font-serif);
+            font-size: 14px;
+            color: var(--ink);
+            opacity: 0.8;
+            margin-bottom: 12px;
+            letter-spacing: 0.1em;
+            display: flex;
+            align-items: center;
+        }
+
+        .section-title::before {
+            content: '';
+            display: inline-block;
+            width: 4px; height: 4px;
+            background-color: var(--seal);
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .question-area {
+            width: 100%;
+            height: 120px;
+            background: transparent;
+            border: none;
+            resize: none;
+            font-family: var(--font-serif);
+            font-size: 16px;
+            line-height: 1.6;
+            color: var(--ink);
+            outline: none;
+        }
+
+        .question-area::placeholder {
+            color: var(--ink);
+            opacity: 0.4;
+        }
+
+        .tag-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+        }
+
+        .time-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+
+        .glass-tag {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-main);
+            padding: 10px 0;
+            text-align: center;
+            font-size: 13px;
+            color: var(--ink);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .glass-tag.active {
+            background: rgba(44, 58, 79, 0.1);
+            border-color: var(--accent);
+            font-weight: bold;
+        }
+
+        .action-container {
+            margin-top: auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            padding-bottom: 20px;
+        }
+
+        .btn-start {
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-main);
+            padding: 14px 40px;
+            font-family: var(--font-serif);
+            font-size: 16px;
+            letter-spacing: 0.2em;
+            color: var(--ink);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        }
+
+        .btn-start:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .btn-start:not(:disabled):active {
+            background: var(--slate-mist);
+            color: var(--bg);
+            border-color: var(--slate-mist);
+        }
+
+        .error-msg {
+            font-size: 13px;
+            color: var(--seal);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .error-msg.visible {
+            opacity: 1;
+        }
+
+        .header {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 30px;
+            opacity: 0.6;
+        }
+
+        .header-title {
+            font-family: var(--font-serif);
+            font-size: 12px;
+            letter-spacing: 0.2em;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="corner-mark top-left"></div>
+    <div class="corner-mark top-right"></div>
+    <div class="corner-mark bottom-left"></div>
+    <div class="corner-mark bottom-right"></div>
+
+    <main class="stage">
+
+        <div class="header">
+            <span class="header-title">起心动念</span>
+        </div>
+
+        <div class="glass-panel">
+            <div class="section-title">所问何事</div>
+            <textarea id="questionInput" class="question-area" placeholder="请简述您当下的困惑或祈愿..."></textarea>
+        </div>
+
+        <div class="glass-panel">
+            <div class="section-title">领域</div>
+            <div class="tag-grid" id="categoryGrid">
+                <div class="glass-tag active">感情</div>
+                <div class="glass-tag">事业</div>
+                <div class="glass-tag">财运</div>
+                <div class="glass-tag">学业</div>
+                <div class="glass-tag">合作</div>
+                <div class="glass-tag">健康</div>
+                <div class="glass-tag">寻物</div>
+                <div class="glass-tag">其他</div>
+            </div>
+        </div>
+
+        <div class="glass-panel">
+            <div class="section-title">时效</div>
+            <div class="time-grid" id="timeGrid">
+                <div class="glass-tag">一周内</div>
+                <div class="glass-tag active">一个月内</div>
+                <div class="glass-tag">三个月内</div>
+                <div class="glass-tag">半年内</div>
+                <div class="glass-tag">一年内</div>
+                <div class="glass-tag">不限</div>
+            </div>
+        </div>
+
+        <div class="action-container">
+            <p class="error-msg" id="errorMsg"></p>
+            <button class="btn-start" id="submitBtn">开始起卦</button>
+        </div>
+
+    </main>
+
+    <script>
+        // ── Tag selection ──────────────────────────────────
+        document.querySelectorAll('.tag-grid, .time-grid').forEach(grid => {
+            grid.querySelectorAll('.glass-tag').forEach(tag => {
+                tag.addEventListener('click', () => {
+                    grid.querySelectorAll('.glass-tag').forEach(t => t.classList.remove('active'));
+                    tag.classList.add('active');
+                });
+            });
+        });
+
+        // ── Session token ──────────────────────────────────
+        function getSessionToken() {
+            const key = 'liu_yao_session';
+            let token = localStorage.getItem(key);
+            if (!token) {
+                token = crypto.randomUUID();
+                localStorage.setItem(key, token);
+            }
+            return token;
+        }
+
+        // ── Submit ─────────────────────────────────────────
+        const API_URL = 'http://localhost:8000';
+
+        const submitBtn = document.getElementById('submitBtn');
+        const errorMsg  = document.getElementById('errorMsg');
+
+        // ── Back to hero ───────────────────────────────────
+        // Desktop: scroll up → notify parent to slide back
+        window.addEventListener('wheel', (e) => {
+            if (e.deltaY < 0) window.parent.postMessage({ type: 'back-to-hero' }, '*');
+        }, { passive: true });
+
+        // Mobile: swipe down → notify parent to slide back
+        let _backTouchY = 0;
+        window.addEventListener('touchstart', (e) => {
+            _backTouchY = e.touches[0].clientY;
+        }, { passive: true });
+        window.addEventListener('touchend', (e) => {
+            if (e.changedTouches[0].clientY - _backTouchY > 50) {
+                window.parent.postMessage({ type: 'back-to-hero' }, '*');
+            }
+        });
+
+        submitBtn.addEventListener('click', async () => {
+            const question = document.getElementById('questionInput').value.trim();
+            if (!question) {
+                errorMsg.textContent = '请先填写您的问题';
+                errorMsg.classList.add('visible');
+                return;
+            }
+            errorMsg.classList.remove('visible');
+
+            const category  = document.querySelector('#categoryGrid .glass-tag.active')?.textContent?.trim() || '其他';
+            const timeframe = document.querySelector('#timeGrid .glass-tag.active')?.textContent?.trim();
+            const tf        = (!timeframe || timeframe === '不限') ? undefined : timeframe;
+
+            submitBtn.disabled = true;
+            submitBtn.textContent = '提交中…';
+
+            try {
+                const res = await fetch(`${API_URL}/divinations`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        question,
+                        category,
+                        timeframe: tf,
+                        session_token: getSessionToken(),
+                    }),
+                });
+                if (!res.ok) throw new Error(res.statusText);
+                const data = await res.json();
+                window.parent.location.href = `/divination/${data.divination_id}`;
+            } catch (e) {
+                errorMsg.textContent = '提交失败，请检查网络后重试';
+                errorMsg.classList.add('visible');
+                submitBtn.disabled = false;
+                submitBtn.textContent = '开始起卦';
+            }
+        });
+    </script>
+
+</body>
+</html>

@@ -15,7 +15,7 @@ export default function InterpretationPanel({ divinationId }: Props) {
   useEffect(() => {
     postInterpret(divinationId)
       .then(setInterp)
-      .catch(() => setInterp({ divination_id: divinationId, error: '网络错误，无法获取解读', generated_by: 'ai' }))
+      .catch(() => setInterp({ divination_id: divinationId, error: '网络错误，无法获取解读', generated_by: 'ai' } as Interpretation))
       .finally(() => setLoading(false))
   }, [divinationId])
 

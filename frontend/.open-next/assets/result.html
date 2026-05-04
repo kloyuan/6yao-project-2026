@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>方寸 · 卦象解读</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@300;400&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --bg:         #F1EFE9;
+      --ink:        #1A1A1B;
+      --accent:     #2C3A4F;
+      --seal:       #A63D33;
+      --haze:       rgba(212, 223, 208, 0.6);
+      --slate:      #6F7A7C;
+      --glass-bg:   rgba(255, 255, 255, 0.25);
+      --glass-bdr:  rgba(255, 255, 255, 0.4);
+      --radius:     clamp(16px, 2vw, 24px);
+      --font-main:  "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      --font-serif: "Noto Serif SC", "Source Han Serif CN", "Noto Serif CJK SC", serif;
+    }
+
+    *, *::before, *::after {
+      margin: 0; padding: 0;
+      box-sizing: border-box;
+      -webkit-font-smoothing: antialiased;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body, html {
+      width: 100%; height: 100%;
+      overflow: hidden;
+      background: var(--bg);
+      font-family: var(--font-main);
+      color: var(--ink);
+    }
+
+    /* ── Background (fixed) ───────────────────────────── */
+    .ink-world {
+      position: absolute; inset: 0;
+      z-index: 1; overflow: hidden; pointer-events: none;
+    }
+
+    .mountain {
+      position: absolute; bottom: -10%;
+      width: 150%; left: -25%;
+      filter: blur(40px); opacity: 0.4;
+    }
+    .mountain-1 { height: 60%; fill: var(--accent); z-index: 2; bottom: -5%; }
+    .mountain-2 { height: 45%; fill: var(--ink);    z-index: 3; bottom: -10%; opacity: 0.6; }
+    .mountain-3 { height: 30%; fill: #88969b;        z-index: 1; bottom: 5%;  opacity: 0.3; }
+
+    .haze-orb {
+      position: absolute; border-radius: 50%;
+      filter: blur(80px); z-index: 4; mix-blend-mode: multiply;
+    }
+    .orb-1 { width: 300px; height: 300px; background: var(--haze);               top: 20%;    left: -10%;  animation: drift 20s infinite alternate; }
+    .orb-2 { width: 400px; height: 400px; background: rgba(44,58,79,0.15); bottom: 10%; right: -20%; animation: drift 25s infinite alternate-reverse; }
+
+    @keyframes drift {
+      0%   { transform: translate(0,0) scale(1); }
+      100% { transform: translate(40px,60px) scale(1.1); }
+    }
+
+    #mistCanvas {
+      position: absolute; inset: 0;
+      width: 100%; height: 100%;
+      z-index: 5; pointer-events: none; opacity: 0.5;
+    }
+
+    /* ── Corner marks ─────────────────────────────────── */
+    .corner { position: absolute; width: 8px; height: 8px; border: 0.5px solid var(--ink); opacity: 0.3; z-index: 20; pointer-events: none; }
+    .c-tl { top: 20px;    left: 20px;  border-right: none; border-bottom: none; }
+    .c-tr { top: 20px;    right: 20px; border-left: none;  border-bottom: none; }
+    .c-bl { bottom: 20px; left: 20px;  border-right: none; border-top: none;    }
+    .c-br { bottom: 20px; right: 20px; border-left: none;  border-top: none;    }
+
+    /* ── Scrollable stage ─────────────────────────────── */
+    .stage {
+      position: relative;
+      width: 100vw; height: 100vh;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      z-index: 10;
+      padding-bottom: 60px;
+    }
+    .stage::-webkit-scrollbar { width: 0; }
+
+    .wrap {
+      max-width: 680px;
+      margin: 0 auto;
+      padding: 0 20px;
+    }
+
+    /* ── Sticky header ────────────────────────────────── */
+    .header {
+      position: sticky; top: 0; z-index: 30;
+      display: flex; justify-content: space-between; align-items: flex-start;
+      padding: 32px 32px 14px;
+      background: linear-gradient(to bottom, rgba(241,239,233,0.9) 70%, transparent);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase;
+    }
+
+    .header-col {
+      display: flex; flex-direction: column; gap: 4px; opacity: 0.6;
+    }
+
+    .header-col-center { position: absolute; left: 50%; transform: translateX(-50%); text-align: center; font-family: var(--font-serif); font-size: 12px; letter-spacing: 0.2em; text-transform: none; }
+    .header-col-right  { text-align: right; }
+
+    .header-reset { cursor: pointer; }
+
+    /* ── Glass panel ──────────────────────────────────── */
+    .panel {
+      background: var(--glass-bg);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid var(--glass-bdr);
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-bottom: 14px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.04);
+    }
+
+    /* ── Section title (red dot) ─────────────────────── */
+    .sec-title {
+      font-family: var(--font-serif);
+      font-size: 13px; letter-spacing: 0.12em; opacity: 0.65;
+      margin-bottom: 14px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .sec-title::before {
+      content: ''; width: 4px; height: 4px;
+      background: var(--seal); border-radius: 50%; flex-shrink: 0;
+    }
+
+    /* ── Question card ────────────────────────────────── */
+    .q-text {
+      font-family: var(--font-serif);
+      font-size: 17px; line-height: 1.75; margin-bottom: 14px;
+    }
+    .q-meta { display: flex; gap: 7px; flex-wrap: wrap; }
+    .tag {
+      font-size: 11px; letter-spacing: 0.08em;
+      padding: 3px 10px; border-radius: 20px;
+      background: rgba(44,58,79,0.07); color: var(--accent);
+      border: 1px solid rgba(44,58,79,0.12);
+    }
+
+    /* ── Hexagram pair ────────────────────────────────── */
+    .hex-pair {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 20px;
+    }
+    @media (max-width: 460px) { .hex-pair { grid-template-columns: 1fr; } }
+
+    .hex-block { display: flex; flex-direction: column; gap: 12px; }
+
+    .hex-name {
+      font-family: var(--font-serif);
+      font-size: 30px; font-weight: 300; letter-spacing: 0.08em; line-height: 1;
+    }
+    .hex-sub {
+      font-family: var(--font-serif);
+      font-size: 10px; letter-spacing: 0.15em; opacity: 0.45; margin-top: 4px;
+    }
+    .hex-meaning {
+      font-family: var(--font-serif);
+      font-size: 12px; line-height: 1.65; opacity: 0.6;
+    }
+    .fortune-row { display: flex; gap: 3px; margin-top: 6px; }
+    .fdot { width: 5px; height: 5px; border-radius: 50%; background: rgba(26,26,27,0.12); }
+    .fdot.on { background: var(--seal); }
+
+    /* ── Yao lines ────────────────────────────────────── */
+    .yao-stack { display: flex; flex-direction: column; gap: 7px; }
+    .yao-row {
+      display: flex; align-items: center; gap: 5px; height: 10px;
+    }
+    .yao-lbl {
+      font-family: var(--font-serif);
+      font-size: 9px; opacity: 0.3; width: 22px; text-align: right; flex-shrink: 0;
+    }
+    .yao-lines { flex: 1; display: flex; align-items: center; height: 4px; gap: 0; }
+    .yl-solid { height: 4px; flex: 1; background: var(--ink); border-radius: 2px; }
+    .yl-half  { height: 4px; flex: 1; background: var(--ink); border-radius: 2px; max-width: 44%; }
+    .yl-gap   { flex: 0 0 7px; }
+    .yao-lines.chg .yl-solid,
+    .yao-lines.chg .yl-half  { background: var(--seal); }
+    .yao-mark { font-size: 9px; color: var(--seal); width: 11px; text-align: center; flex-shrink: 0; }
+
+    /* ── Throw record ─────────────────────────────────── */
+    .throw-row {
+      display: grid; grid-template-columns: 26px 1fr auto auto;
+      gap: 8px; align-items: center;
+      padding: 8px 0;
+      border-bottom: 0.5px solid rgba(26,26,27,0.07);
+      font-size: 12px;
+    }
+    .throw-row:last-child { border-bottom: none; }
+    .throw-num { font-family: var(--font-serif); font-size: 10px; opacity: 0.38; }
+    .coins { display: flex; gap: 4px; }
+    .coin {
+      width: 20px; height: 20px; border-radius: 50%;
+      border: 1px solid rgba(26,26,27,0.18);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 9px; opacity: 0.65;
+    }
+    .coin.h { background: rgba(44,58,79,0.1); }
+    .throw-sum { font-family: var(--font-serif); font-size: 13px; opacity: 0.55; text-align: center; min-width: 18px; }
+    .throw-type { font-family: var(--font-serif); font-size: 11px; display: flex; align-items: center; gap: 5px; justify-content: flex-end; min-width: 64px; }
+    .dyn-badge { font-size: 9px; color: var(--seal); border: 0.5px solid var(--seal); border-radius: 3px; padding: 1px 4px; }
+
+    /* ── Interpretation ───────────────────────────────── */
+    .interp-summary {
+      font-family: var(--font-serif);
+      font-size: 15px; line-height: 1.85;
+      padding-bottom: 16px; margin-bottom: 16px;
+      border-bottom: 0.5px solid rgba(26,26,27,0.08);
+    }
+    .interp-sub { margin-bottom: 16px; }
+    .interp-sub-title {
+      font-size: 10px; letter-spacing: 0.18em; opacity: 0.38; text-transform: uppercase;
+      margin-bottom: 6px; font-family: var(--font-serif);
+    }
+    .interp-body { font-family: var(--font-serif); font-size: 14px; line-height: 1.85; opacity: 0.82; }
+    .action-list { list-style: none; display: flex; flex-direction: column; gap: 7px; }
+    .action-item {
+      display: flex; gap: 10px; align-items: flex-start;
+      font-family: var(--font-serif); font-size: 14px; line-height: 1.65; opacity: 0.82;
+    }
+    .action-item::before { content: '—'; color: var(--seal); flex-shrink: 0; }
+    .divider { height: 0.5px; background: rgba(26,26,27,0.07); margin: 14px 0; }
+
+    /* ── Skeleton ─────────────────────────────────────── */
+    .sk {
+      background: linear-gradient(90deg, rgba(26,26,27,0.06) 25%, rgba(26,26,27,0.11) 50%, rgba(26,26,27,0.06) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.6s infinite;
+      border-radius: 4px; height: 13px; margin-bottom: 9px;
+    }
+    .sk.w-90 { width: 90%; }
+    .sk.w-75 { width: 75%; }
+    .sk.w-60 { width: 60%; }
+    @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+    /* ── Chat ─────────────────────────────────────────── */
+    .chat-meta {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 12px;
+    }
+    .rounds-note { font-size: 10px; letter-spacing: 0.1em; opacity: 0.38; }
+    .chat-msgs {
+      display: flex; flex-direction: column; gap: 10px;
+      max-height: 300px; overflow-y: auto; margin-bottom: 12px;
+    }
+    .chat-msgs::-webkit-scrollbar { width: 0; }
+    .chat-empty {
+      text-align: center; font-family: var(--font-serif);
+      font-size: 13px; opacity: 0.32; padding: 14px 0; letter-spacing: 0.08em;
+    }
+    .msg-u {
+      align-self: flex-end;
+      background: rgba(44,58,79,0.08); border: 1px solid rgba(44,58,79,0.12);
+      border-radius: 14px 14px 3px 14px;
+      padding: 9px 13px; max-width: 78%;
+      font-family: var(--font-serif); font-size: 14px; line-height: 1.65;
+    }
+    .msg-a {
+      align-self: flex-start;
+      background: rgba(255,255,255,0.32); border: 1px solid rgba(255,255,255,0.55);
+      border-radius: 14px 14px 14px 3px;
+      padding: 9px 13px; max-width: 88%;
+      font-family: var(--font-serif); font-size: 14px; line-height: 1.65;
+    }
+    .msg-note { font-size: 10px; opacity: 0.35; margin-top: 4px; letter-spacing: 0.04em; }
+    .msg-typing { opacity: 0.4; letter-spacing: 0.2em; font-size: 16px; }
+    .chat-input-row { display: flex; gap: 9px; align-items: flex-end; }
+    .chat-input {
+      flex: 1;
+      background: rgba(255,255,255,0.3); border: 1px solid rgba(255,255,255,0.5);
+      border-radius: 14px; padding: 10px 14px;
+      font-family: var(--font-serif); font-size: 14px; color: var(--ink);
+      outline: none; resize: none; min-height: 42px; max-height: 96px; line-height: 1.5;
+    }
+    .chat-input::placeholder { color: var(--ink); opacity: 0.32; }
+    .chat-input:disabled { opacity: 0.35; cursor: not-allowed; }
+    .chat-send {
+      height: 42px;
+      background: var(--glass-bg); border: 1px solid var(--glass-bdr);
+      backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+      border-radius: 14px; padding: 0 16px;
+      font-family: var(--font-serif); font-size: 13px; letter-spacing: 0.1em; color: var(--ink);
+      cursor: pointer; white-space: nowrap; transition: all 0.2s;
+    }
+    .chat-send:active { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+    .chat-send:disabled { opacity: 0.28; cursor: not-allowed; }
+
+    /* ── Time context strip ──────────────────────────── */
+    .time-ctx {
+      display: flex; gap: 14px; flex-wrap: wrap;
+      font-family: var(--font-serif);
+      font-size: 10px; letter-spacing: 0.12em;
+      opacity: 0.42; margin-top: 12px; padding-top: 10px;
+      border-top: 0.5px solid rgba(26,26,27,0.07);
+    }
+
+    /* ── Per-line time state ──────────────────────────── */
+    .line-time {
+      display: flex; align-items: center; gap: 5px; flex-wrap: wrap;
+      padding: 3px 0 6px 34px;
+    }
+    .time-branch {
+      font-family: var(--font-serif);
+      font-size: 10px; opacity: 0.4; letter-spacing: 0.06em;
+    }
+    .time-str {
+      font-family: var(--font-serif);
+      font-size: 10px; padding: 1px 6px; border-radius: 3px; letter-spacing: 0.04em;
+    }
+    .str-旺 { color: #2c6e5a; background: rgba(44,110,90,0.1); }
+    .str-相 { color: var(--accent); background: rgba(44,58,79,0.1); }
+    .str-休 { color: var(--slate); background: rgba(111,122,124,0.08); }
+    .str-囚 { color: #7a5a2c; background: rgba(122,90,44,0.08); }
+    .str-死 { color: var(--slate); background: rgba(111,122,124,0.06); opacity: 0.55; }
+    .t-badge {
+      font-size: 9px; border-radius: 3px; padding: 1px 5px; letter-spacing: 0.04em;
+    }
+    .t-void    { color: var(--seal); border: 0.5px solid var(--seal); }
+    .t-broken  { color: var(--slate); border: 0.5px solid var(--slate); }
+    .t-moving  { color: #7a5a2c; border: 0.5px solid #7a5a2c; }
+    .t-linri   { color: var(--accent); border: 0.5px solid rgba(44,58,79,0.4); }
+
+    /* ── States ───────────────────────────────────────── */
+    .err-state, .stable-note {
+      text-align: center; font-family: var(--font-serif);
+      font-size: 13px; opacity: 0.42; padding: 18px 0; letter-spacing: 0.08em;
+    }
+    .err-state { color: var(--seal); opacity: 0.6; }
+  </style>
+</head>
+
+<body>
+
+<!-- Background -->
+<div class="ink-world">
+  <div class="haze-orb orb-1"></div>
+  <div class="haze-orb orb-2"></div>
+  <svg class="mountain mountain-1" viewBox="0 0 1000 400" preserveAspectRatio="none"><path d="M0,400 Q150,100 300,250 T600,100 T1000,350 L1000,400 L0,400 Z"/></svg>
+  <svg class="mountain mountain-2" viewBox="0 0 1000 400" preserveAspectRatio="none"><path d="M0,400 Q200,150 400,300 T800,50 T1000,400 L0,400 Z"/></svg>
+  <svg class="mountain mountain-3" viewBox="0 0 1000 400" preserveAspectRatio="none"><path d="M0,400 Q250,50 500,200 T1000,100 L1000,400 L0,400 Z"/></svg>
+  <canvas id="mistCanvas"></canvas>
+</div>
+
+<div class="corner c-tl"></div>
+<div class="corner c-tr"></div>
+<div class="corner c-bl"></div>
+<div class="corner c-br"></div>
+
+<main class="stage">
+  <div class="header">
+    <div class="header-col"><p>The Method</p></div>
+    <div class="header-col header-col-center"><p>卦象解读</p></div>
+    <div class="header-col header-col-right">
+      <p>EN/中文</p>
+      <p>∞</p>
+      <p class="header-reset" id="resetBtn">重置</p>
+    </div>
+  </div>
+
+  <div class="wrap" id="root">
+    <div style="height:45vh;display:flex;align-items:center;justify-content:center;">
+      <span style="font-family:var(--font-serif);font-size:13px;opacity:0.35;letter-spacing:0.25em">正在读取卦象…</span>
+    </div>
+  </div>
+</main>
+
+<script>
+'use strict';
+
+const API   = window.location.hostname === 'localhost' ? 'http://localhost:8000' : '';
+const DID   = new URLSearchParams(window.location.search).get('id');
+const LBLS  = ['初爻','二爻','三爻','四爻','五爻','上爻'];
+
+// ── Navigation ────────────────────────────────────────────
+document.getElementById('resetBtn').addEventListener('click', () => {
+  const top = window.parent !== window ? window.parent : window;
+  top.location.href = '/';
+});
+
+// ── Mist canvas ───────────────────────────────────────────
+(function initMist() {
+  const cv = document.getElementById('mistCanvas');
+  const cx = cv.getContext('2d');
+  const ps = [];
+
+  function resize() { cv.width = innerWidth; cv.height = innerHeight; }
+  window.addEventListener('resize', resize);
+  resize();
+
+  function P() {
+    this.x = Math.random() * cv.width;  this.y = Math.random() * cv.height;
+    this.s = Math.random() * 150 + 50;  this.vx = Math.random() * 0.5 - 0.25;
+    this.vy = Math.random() * 0.2 - 0.1; this.o = Math.random() * 0.15;
+  }
+  P.prototype.tick = function() {
+    this.x += this.vx; this.y += this.vy;
+    if (this.x > cv.width  + 100) this.x = -100;
+    if (this.x < -100)            this.x = cv.width + 100;
+    if (this.y > cv.height + 100) this.y = -100;
+    if (this.y < -100)            this.y = cv.height + 100;
+    const g = cx.createRadialGradient(this.x, this.y, 0, this.x, this.y, this.s);
+    g.addColorStop(0, `rgba(255,255,255,${this.o})`);
+    g.addColorStop(1, 'rgba(255,255,255,0)');
+    cx.beginPath(); cx.fillStyle = g;
+    cx.arc(this.x, this.y, this.s, 0, Math.PI * 2); cx.fill();
+  };
+  for (let i = 0; i < 30; i++) ps.push(new P());
+  (function loop() {
+    cx.clearRect(0, 0, cv.width, cv.height);
+    ps.forEach(p => p.tick());
+    requestAnimationFrame(loop);
+  })();
+})();
+
+// ── Helpers ───────────────────────────────────────────────
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function isYin(line) {
+  return line.line_type === '少阴' || line.line_type === '老阴';
+}
+
+function yaoStack(lines, flipped) {
+  return [...lines]
+    .sort((a, b) => b.line_number - a.line_number)
+    .map(l => {
+      const yin = flipped ? (l.is_changing ? !isYin(l) : isYin(l)) : isYin(l);
+      const chg = l.is_changing && !flipped;
+      const mark = chg ? (isYin(l) ? '×' : '○') : '';
+      const cc = chg ? ' chg' : '';
+      const inner = yin
+        ? `<div class="yl-half"></div><div class="yl-gap"></div><div class="yl-half"></div>`
+        : `<div class="yl-solid"></div>`;
+      return `<div class="yao-row">
+        <span class="yao-lbl">${LBLS[l.line_number - 1]}</span>
+        <div class="yao-lines${cc}">${inner}</div>
+        <span class="yao-mark">${mark}</span>
+      </div>`;
+    }).join('');
+}
+
+function fortune(n) {
+  let d = '';
+  for (let i = 1; i <= 5; i++) d += `<div class="fdot${i <= n ? ' on' : ''}"></div>`;
+  return `<div class="fortune-row">${d}</div>`;
+}
+
+function sk() {
+  return `<div class="sk w-90"></div><div class="sk w-75"></div>
+          <div class="sk w-90"></div><div class="sk w-60"></div>
+          <div class="sk w-75" style="margin-top:14px"></div>
+          <div class="sk w-90"></div><div class="sk w-60"></div>`;
+}
+
+// ── Render helpers ────────────────────────────────────────
+function rQuestion(r) {
+  const tf = r.timeframe ? `<span class="tag">${esc(r.timeframe)}</span>` : '';
+  const tc = r.time_context;
+  let timeCtx = '';
+  if (tc && tc.month_branch) {
+    const voids = (tc.void_branches || []).join('、');
+    timeCtx = `<div class="time-ctx">
+      <span>月建 · ${esc(tc.month_branch)}</span>
+      <span>日辰 · ${esc(tc.day_stem_branch || tc.day_branch || '—')}</span>
+      ${voids ? `<span>旬空 · ${esc(voids)}</span>` : ''}
+    </div>`;
+  }
+  return `<div class="panel">
+    <div class="sec-title">所问何事</div>
+    <div class="q-text">「${esc(r.question)}」</div>
+    <div class="q-meta"><span class="tag">${esc(r.category)}</span>${tf}</div>
+    ${timeCtx}
+  </div>`;
+}
+
+function rHexagram(r) {
+  const base = r.base_hexagram_data;
+  const chgd = r.changed_hexagram_data;
+  const hasChg = r.changing_lines.length > 0;
+
+  function block(hex, lines, flipped) {
+    const tri = hex.trigrams ? hex.trigrams.join(' · ') : '';
+    return `<div class="hex-block">
+      <div>
+        <div class="hex-name">${esc(hex.name)}</div>
+        <div class="hex-sub">${esc(tri)}</div>
+        ${fortune(hex.fortune_level)}
+      </div>
+      <div class="yao-stack">${yaoStack(lines, flipped)}</div>
+      <div class="hex-meaning">${esc(hex.meaning || '')}</div>
+    </div>`;
+  }
+
+  let inner = '';
+  if (base) {
+    if (hasChg && chgd) {
+      inner = `<div class="hex-pair">${block(base, r.lines, false)}${block(chgd, r.lines, true)}</div>`;
+    } else {
+      inner = block(base, r.lines, false);
+    }
+  }
+
+  return `<div class="panel">
+    <div class="sec-title">本卦${hasChg ? ' · 变卦' : ''}</div>
+    ${inner || ''}
+    ${!hasChg ? '<p class="stable-note">无动爻，卦象稳定</p>' : ''}
+  </div>`;
+}
+
+function rThrows(lines) {
+  const rows = lines.map(l => {
+    const coins = l.coin_values.map(v =>
+      `<div class="coin${v === 3 ? ' h' : ''}">${v === 3 ? '正' : '背'}</div>`
+    ).join('');
+
+    let timeRow = '';
+    const ts = l.time_state;
+    if (ts && ts.branch) {
+      const badges = [];
+      if (ts.is_void)            badges.push(`<span class="t-badge t-void">旬空</span>`);
+      if (ts.is_month_broken)    badges.push(`<span class="t-badge t-broken">月破</span>`);
+      if (ts.is_secretly_moving) badges.push(`<span class="t-badge t-moving">暗动</span>`);
+      if (ts.is_day_matched)     badges.push(`<span class="t-badge t-linri">临日</span>`);
+      timeRow = `<div class="line-time">
+        <span class="time-branch">${esc(ts.branch)} · ${esc(ts.element)}</span>
+        <span class="time-str str-${esc(ts.strength_by_month)}">${esc(ts.strength_by_month)}</span>
+        ${badges.join('')}
+      </div>`;
+    }
+
+    return `<div class="throw-row">
+      <span class="throw-num">${LBLS[l.line_number - 1]}</span>
+      <div class="coins">${coins}</div>
+      <span class="throw-sum">${l.coin_sum}</span>
+      <span class="throw-type">${esc(l.line_type)}${l.is_changing ? '<span class="dyn-badge">动</span>' : ''}</span>
+    </div>${timeRow}`;
+  }).join('');
+  return `<div class="panel">
+    <div class="sec-title">抛掷记录</div>
+    ${rows}
+  </div>`;
+}
+
+function rInterpLoading() {
+  return `<div class="panel" id="interpCard">
+    <div class="sec-title">白话解读</div>
+    ${sk()}
+  </div>`;
+}
+
+function rInterp(interp, hasChg) {
+  if (!interp || interp.error) {
+    return `<div class="panel" id="interpCard">
+      <div class="sec-title">白话解读</div>
+      <div class="err-state">解读暂时无法生成，请稍后刷新重试。</div>
+    </div>`;
+  }
+  const parts = [];
+  if (interp.summary)
+    parts.push(`<div class="interp-summary">${esc(interp.summary)}</div>`);
+  if (interp.base_reading)
+    parts.push(`<div class="interp-sub"><div class="interp-sub-title">本卦解读</div><div class="interp-body">${esc(interp.base_reading)}</div></div>`);
+  if (hasChg && interp.changing_lines_analysis)
+    parts.push(`<div class="interp-sub"><div class="interp-sub-title">动爻分析</div><div class="interp-body">${esc(interp.changing_lines_analysis)}</div></div>`);
+  if (hasChg && interp.changed_hexagram_trend)
+    parts.push(`<div class="interp-sub"><div class="interp-sub-title">变卦趋势</div><div class="interp-body">${esc(interp.changed_hexagram_trend)}</div></div>`);
+  if (interp.category_advice)
+    parts.push(`<div class="interp-sub"><div class="interp-sub-title">领域建议</div><div class="interp-body">${esc(interp.category_advice)}</div></div>`);
+  if (interp.action_advice && interp.action_advice.length) {
+    const items = interp.action_advice.map(a => `<li class="action-item">${esc(a)}</li>`).join('');
+    parts.push(`<div class="interp-sub"><div class="interp-sub-title">行动建议</div><ul class="action-list">${items}</ul></div>`);
+  }
+  return `<div class="panel" id="interpCard">
+    <div class="sec-title">白话解读</div>
+    ${parts.join('<div class="divider"></div>')}
+  </div>`;
+}
+
+// ── Chat state ────────────────────────────────────────────
+let msgs        = [];
+let ruCnt       = 0;
+let ruLimit     = 20;
+let sending     = false;
+
+function rChat() {
+  const rem = ruLimit - ruCnt;
+  const done = rem <= 0;
+  const msgsHtml = msgs.length === 0
+    ? `<div class="chat-empty">可就卦象继续追问</div>`
+    : msgs.map(m => {
+        if (m.role === 'user')
+          return `<div class="msg-u">${esc(m.content)}</div>`;
+        if (m._typing)
+          return `<div class="msg-a"><span class="msg-typing">···</span></div>`;
+        return `<div>
+          <div class="msg-a">${m.content.replace(/\n/g,'<br>')}</div>
+          ${m.note ? `<div class="msg-note">${esc(m.note)}</div>` : ''}
+        </div>`;
+      }).join('');
+
+  const dis = done || sending ? 'disabled' : '';
+  const ph  = done ? '追问次数已用尽' : '就卦象继续追问…';
+  return `<div class="panel">
+    <div class="chat-meta">
+      <div class="sec-title" style="margin:0">追问</div>
+      <span class="rounds-note">还可追问 ${rem} 次</span>
+    </div>
+    <div class="chat-msgs" id="chatMsgs">${msgsHtml}</div>
+    <div class="chat-input-row">
+      <textarea class="chat-input" id="chatIn" rows="1" placeholder="${ph}" ${dis}></textarea>
+      <button class="chat-send" id="chatBtn" ${dis}>发送</button>
+    </div>
+  </div>`;
+}
+
+function updateChat() {
+  const el = document.getElementById('chatWrap');
+  if (!el) return;
+  el.innerHTML = rChat();
+  const m = document.getElementById('chatMsgs');
+  if (m) m.scrollTop = m.scrollHeight;
+  bindChat();
+}
+
+function bindChat() {
+  const inp = document.getElementById('chatIn');
+  const btn = document.getElementById('chatBtn');
+  if (!inp || !btn) return;
+  inp.addEventListener('input', () => {
+    inp.style.height = 'auto';
+    inp.style.height = Math.min(inp.scrollHeight, 96) + 'px';
+  });
+  inp.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); doSend(); }
+  });
+  btn.addEventListener('click', doSend);
+}
+
+async function doSend() {
+  if (sending) return;
+  const inp = document.getElementById('chatIn');
+  const txt = inp?.value.trim();
+  if (!txt) return;
+
+  sending = true;
+  msgs.push({ role: 'user', content: txt });
+  inp.value = ''; inp.style.height = 'auto';
+  msgs.push({ role: 'assistant', _typing: true });
+  updateChat();
+
+  try {
+    const res = await fetch(`${API}/divinations/${DID}/followup`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: txt }),
+    });
+    if (!res.ok) throw new Error();
+    const d = await res.json();
+    msgs = msgs.filter(m => !m._typing);
+    msgs.push({ role: 'assistant', content: d.content, note: d.source_note });
+    ruCnt   = d.rounds_used;
+    ruLimit = d.rounds_limit;
+  } catch {
+    msgs = msgs.filter(m => !m._typing);
+    msgs.push({ role: 'assistant', content: '网络错误，请重试。' });
+  }
+
+  sending = false;
+  updateChat();
+}
+
+// ── Page init ─────────────────────────────────────────────
+let resultData  = null;
+let interpData  = null;
+let interpReady = false;
+
+function mount() {
+  if (!resultData) return;
+  const hasChg = resultData.changing_lines.length > 0;
+  document.getElementById('root').innerHTML = `
+    ${rQuestion(resultData)}
+    ${rHexagram(resultData)}
+    ${interpReady ? rInterp(interpData, hasChg) : rInterpLoading()}
+    ${rThrows(resultData.lines)}
+    <div id="chatWrap">${rChat()}</div>
+  `;
+  bindChat();
+}
+
+function patchInterp() {
+  const card = document.getElementById('interpCard');
+  if (!card) return;
+  const hasChg = resultData?.changing_lines.length > 0;
+  card.outerHTML = rInterp(interpData, hasChg);
+}
+
+async function init() {
+  if (!DID) {
+    document.getElementById('root').innerHTML =
+      `<div class="err-state">找不到起卦记录，请重新起卦。</div>`;
+    return;
+  }
+
+  const [rr, ir] = await Promise.allSettled([
+    fetch(`${API}/divinations/${DID}/result`),
+    fetch(`${API}/divinations/${DID}/interpret`, { method: 'POST' }),
+  ]);
+
+  if (rr.status !== 'fulfilled' || !rr.value.ok) {
+    document.getElementById('root').innerHTML =
+      `<div class="err-state">无法加载卦象结果，请刷新重试。</div>`;
+    return;
+  }
+
+  resultData = await rr.value.json();
+  mount();
+
+  if (ir.status === 'fulfilled' && ir.value.ok) {
+    interpData = await ir.value.json();
+  } else {
+    interpData = { error: true };
+  }
+  interpReady = true;
+  patchInterp();
+  bindChat();
+}
+
+init();
+</script>
+</body>
+</html>
