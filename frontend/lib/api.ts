@@ -35,6 +35,8 @@ export function submitLine(
   divination_id: string,
   line_number: number,
   coin_values: number[],
+  cast_datetime?: string,
+  timezone?: string,
 ): Promise<{
   line_number: number
   coin_values: number[]
@@ -44,7 +46,7 @@ export function submitLine(
 }> {
   return req(`/divinations/${divination_id}/lines`, {
     method: 'POST',
-    body: JSON.stringify({ line_number, coin_values }),
+    body: JSON.stringify({ line_number, coin_values, cast_datetime, timezone }),
   })
 }
 

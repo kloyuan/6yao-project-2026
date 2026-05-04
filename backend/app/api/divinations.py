@@ -30,7 +30,9 @@ def submit_line(
     db: Client = Depends(get_supabase),
 ):
     return divination_service.submit_line(
-        divination_id, body.line_number, body.coin_values, db
+        divination_id, body.line_number, body.coin_values, db,
+        cast_datetime=body.cast_datetime,
+        timezone=body.timezone,
     )
 
 

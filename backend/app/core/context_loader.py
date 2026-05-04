@@ -40,6 +40,11 @@ def load_hexagram_context(divination_id: str, db: Client) -> dict:
         "base_hexagram_data": base_data,
         "changed_hexagram_data": changed_data,
         "lines": lines,
+        "month_branch": div.get("month_branch"),
+        "day_stem_branch": div.get("day_stem_branch"),
+        "day_branch": div.get("day_branch"),
+        "void_branches": div.get("void_branches") or [],
+        "cast_datetime": div.get("cast_datetime"),
     }
 
 

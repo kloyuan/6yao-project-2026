@@ -110,7 +110,7 @@
       display: flex; flex-direction: column; gap: 4px; opacity: 0.6;
     }
 
-    .header-col-center { text-align: center; font-family: var(--font-serif); font-size: 12px; letter-spacing: 0.2em; text-transform: none; }
+    .header-col-center { position: absolute; left: 50%; transform: translateX(-50%); text-align: center; font-family: var(--font-serif); font-size: 12px; letter-spacing: 0.2em; text-transform: none; }
     .header-col-right  { text-align: right; }
 
     .header-reset { cursor: pointer; }
@@ -300,6 +300,41 @@
     .chat-send:active { background: var(--accent); color: var(--bg); border-color: var(--accent); }
     .chat-send:disabled { opacity: 0.28; cursor: not-allowed; }
 
+    /* ── Time context strip ──────────────────────────── */
+    .time-ctx {
+      display: flex; gap: 14px; flex-wrap: wrap;
+      font-family: var(--font-serif);
+      font-size: 10px; letter-spacing: 0.12em;
+      opacity: 0.42; margin-top: 12px; padding-top: 10px;
+      border-top: 0.5px solid rgba(26,26,27,0.07);
+    }
+
+    /* ── Per-line time state ──────────────────────────── */
+    .line-time {
+      display: flex; align-items: center; gap: 5px; flex-wrap: wrap;
+      padding: 3px 0 6px 34px;
+    }
+    .time-branch {
+      font-family: var(--font-serif);
+      font-size: 10px; opacity: 0.4; letter-spacing: 0.06em;
+    }
+    .time-str {
+      font-family: var(--font-serif);
+      font-size: 10px; padding: 1px 6px; border-radius: 3px; letter-spacing: 0.04em;
+    }
+    .str-旺 { color: #2c6e5a; background: rgba(44,110,90,0.1); }
+    .str-相 { color: var(--accent); background: rgba(44,58,79,0.1); }
+    .str-休 { color: var(--slate); background: rgba(111,122,124,0.08); }
+    .str-囚 { color: #7a5a2c; background: rgba(122,90,44,0.08); }
+    .str-死 { color: var(--slate); background: rgba(111,122,124,0.06); opacity: 0.55; }
+    .t-badge {
+      font-size: 9px; border-radius: 3px; padding: 1px 5px; letter-spacing: 0.04em;
+    }
+    .t-void    { color: var(--seal); border: 0.5px solid var(--seal); }
+    .t-broken  { color: var(--slate); border: 0.5px solid var(--slate); }
+    .t-moving  { color: #7a5a2c; border: 0.5px solid #7a5a2c; }
+    .t-linri   { color: var(--accent); border: 0.5px solid rgba(44,58,79,0.4); }
+
     /* ── States ───────────────────────────────────────── */
     .err-state, .stable-note {
       text-align: center; font-family: var(--font-serif);
@@ -436,10 +471,21 @@ function sk() {
 // ── Render helpers ────────────────────────────────────────
 function rQuestion(r) {
   const tf = r.timeframe ? `<span class="tag">${esc(r.timeframe)}</span>` : '';
+  const tc = r.time_context;
+  let timeCtx = '';
+  if (tc && tc.month_branch) {
+    const voids = (tc.void_branches || []).join('、');
+    timeCtx = `<div class="time-ctx">
+      <span>月建 · ${esc(tc.month_branch)}</span>
+      <span>日辰 · ${esc(tc.day_stem_branch || tc.day_branch || '—')}</span>
+      ${voids ? `<span>旬空 · ${esc(voids)}</span>` : ''}
+    </div>`;
+  }
   return `<div class="panel">
     <div class="sec-title">所问何事</div>
     <div class="q-text">「${esc(r.question)}」</div>
     <div class="q-meta"><span class="tag">${esc(r.category)}</span>${tf}</div>
+    ${timeCtx}
   </div>`;
 }
 
@@ -482,12 +528,28 @@ function rThrows(lines) {
     const coins = l.coin_values.map(v =>
       `<div class="coin${v === 3 ? ' h' : ''}">${v === 3 ? '正' : '背'}</div>`
     ).join('');
+
+    let timeRow = '';
+    const ts = l.time_state;
+    if (ts && ts.branch) {
+      const badges = [];
+      if (ts.is_void)            badges.push(`<span class="t-badge t-void">旬空</span>`);
+      if (ts.is_month_broken)    badges.push(`<span class="t-badge t-broken">月破</span>`);
+      if (ts.is_secretly_moving) badges.push(`<span class="t-badge t-moving">暗动</span>`);
+      if (ts.is_day_matched)     badges.push(`<span class="t-badge t-linri">临日</span>`);
+      timeRow = `<div class="line-time">
+        <span class="time-branch">${esc(ts.branch)} · ${esc(ts.element)}</span>
+        <span class="time-str str-${esc(ts.strength_by_month)}">${esc(ts.strength_by_month)}</span>
+        ${badges.join('')}
+      </div>`;
+    }
+
     return `<div class="throw-row">
       <span class="throw-num">${LBLS[l.line_number - 1]}</span>
       <div class="coins">${coins}</div>
       <span class="throw-sum">${l.coin_sum}</span>
       <span class="throw-type">${esc(l.line_type)}${l.is_changing ? '<span class="dyn-badge">动</span>' : ''}</span>
-    </div>`;
+    </div>${timeRow}`;
   }).join('');
   return `<div class="panel">
     <div class="sec-title">抛掷记录</div>

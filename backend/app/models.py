@@ -25,6 +25,8 @@ class DivinationCreatedResponse(BaseModel):
 class SubmitLineRequest(BaseModel):
     line_number: int = Field(..., ge=1, le=6)
     coin_values: list[int] = Field(..., min_length=3, max_length=3)
+    cast_datetime: Optional[str] = None   # ISO 8601; required for line_number == 1
+    timezone: Optional[str] = None        # IANA timezone string
 
     @model_validator(mode="after")
     def validate_coins(self) -> SubmitLineRequest:
@@ -40,6 +42,9 @@ class LineRecord(BaseModel):
     coin_sum: int
     line_type: str
     is_changing: bool
+    branch: Optional[str] = None
+    element: Optional[str] = None
+    time_state: Optional[dict] = None
 
 
 class LineResultResponse(BaseModel):
@@ -48,6 +53,8 @@ class LineResultResponse(BaseModel):
     coin_sum: int
     line_type: str
     is_changing: bool
+    branch: Optional[str] = None
+    element: Optional[str] = None
 
 
 class DivinationResultResponse(BaseModel):
@@ -61,6 +68,7 @@ class DivinationResultResponse(BaseModel):
     lines: list[LineRecord]
     base_hexagram_data: Optional[dict]
     changed_hexagram_data: Optional[dict]
+    time_context: Optional[dict] = None
 
 
 class InterpretationResponse(BaseModel):

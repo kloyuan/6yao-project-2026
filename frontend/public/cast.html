@@ -183,6 +183,9 @@
         }
 
         .header-col-center {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
             text-align: center;
             font-family: var(--font-serif);
             font-size: 12px;
@@ -580,6 +583,46 @@
             }
         }
 
+        .time-strip {
+            position: fixed;
+            top: 148px;
+            left: 0;
+            right: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            opacity: 0.5;
+            z-index: 100;
+            pointer-events: none;
+        }
+        .time-row {
+            width: 210px;
+        }
+        .time-modern {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            font-size: 11px;
+            letter-spacing: 0.05em;
+            font-family: var(--font-main);
+            font-variant-numeric: tabular-nums;
+        }
+        #tmDow { text-align: center; }
+        #tmClock { text-align: right; font-family: ui-monospace, 'SF Mono', Menlo, monospace; letter-spacing: 0; }
+        .time-trad {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            letter-spacing: 0.08em;
+            font-family: var(--font-serif);
+        }
+        @media (max-width: 768px) {
+            .time-strip { top: 106px; }
+            .time-row { width: 185px; }
+            .time-modern { font-size: 10px; }
+            .time-trad { font-size: 11px; }
+        }
+
     </style>
 </head>
 <body vid="6">
@@ -618,6 +661,20 @@
                 <p class="header-reset" id="resetBtn">重置</p>
             </div>
         </header>
+
+    <div class="time-strip" id="timeStrip">
+        <div class="time-row time-modern">
+            <span id="tmDate"></span>
+            <span id="tmDow"></span>
+            <span id="tmClock"></span>
+        </div>
+        <div class="time-row time-trad">
+            <span id="ttYear"></span>
+            <span id="ttMonth"></span>
+            <span id="ttDay"></span>
+            <span id="ttHour"></span>
+        </div>
+    </div>
 
 <main class="stage" vid="25">
         <div class="main-layout" vid="26">
@@ -777,6 +834,8 @@
         let currentYao = 0;
         const totalYao = 6;
         let isCasting = false;
+        let castDatetime = null;
+        let timeLocked = false;
         
         const yaoLabels = ['初爻', '二爻', '三爻', '四爻', '五爻', '上爻'];
         
@@ -808,6 +867,10 @@
         });
 
         function castCoins() {
+            if (currentYao === 0 && !castDatetime) {
+                castDatetime = new Date().toISOString();
+                timeLocked = true;
+            }
             isCasting = true;
             actionBtn.style.pointerEvents = 'none';
             actionBtn.style.opacity = '0.5';
@@ -840,10 +903,15 @@
 
                 // Submit line to backend (non-blocking; animation continues regardless)
                 if (divinationId) {
+                    const linePayload = { line_number: currentYao + 1, coin_values: flips };
+                    if (currentYao === 0 && castDatetime) {
+                        linePayload.cast_datetime = castDatetime;
+                        linePayload.timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+                    }
                     fetch(`${API_URL}/divinations/${divinationId}/lines`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ line_number: currentYao + 1, coin_values: flips }),
+                        body: JSON.stringify(linePayload),
                     }).catch(() => {});
                 }
                 
@@ -952,16 +1020,76 @@
         function handleCompletion(finalResultData) {
             progressText.textContent = "起卦完成";
             currentResultArea.classList.remove('visible');
-            
-            
+
+
             completionMsg.classList.add('visible');
-            
-            
+
+
             actionBtn.textContent = '查看结果';
             actionBtn.style.pointerEvents = 'auto';
             actionBtn.style.opacity = '1';
             isCasting = false;
         }
+
+        // ── Traditional time display ──────────────────────────
+        const GANZHI_STEMS = ['甲','乙','丙','丁','戊','己','庚','辛','壬','癸'];
+        const GANZHI_BRANCHES = ['子','丑','寅','卯','辰','巳','午','未','申','酉','戌','亥'];
+        const DOW_EN = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+        function yearGanzhi(d) {
+            const y = d.getFullYear();
+            return GANZHI_STEMS[((y - 2024) % 10 + 10) % 10]
+                + GANZHI_BRANCHES[((y - 2024) % 12 + 4 + 12) % 12] + '年';
+        }
+
+        function monthGanzhi(d, yearStemIdx) {
+            const m = d.getMonth() + 1, day = d.getDate();
+            // [solar-term day threshold, branch-before, branch-after]
+            const thresholds = [
+                [6, 0, 1], [4, 1, 2], [6, 2, 3], [5, 3, 4],
+                [6, 4, 5], [6, 5, 6], [7, 6, 7], [7, 7, 8],
+                [8, 8, 9], [8, 9, 10], [7, 10, 11], [7, 11, 0],
+            ];
+            const [thresh, bBefore, bAfter] = thresholds[m - 1];
+            const bIdx = day < thresh ? bBefore : bAfter;
+            const dist = (bIdx - 2 + 12) % 12;
+            const sIdx = ((yearStemIdx * 2 + 2) + dist) % 10;
+            return GANZHI_STEMS[sIdx] + GANZHI_BRANCHES[bIdx] + '月';
+        }
+
+        function dayGanzhi(d) {
+            const ref = Date.UTC(2000, 0, 1);
+            const now = Date.UTC(d.getFullYear(), d.getMonth(), d.getDate());
+            const idx = ((10 + Math.round((now - ref) / 86400000)) % 60 + 60) % 60;
+            return GANZHI_STEMS[idx % 10] + GANZHI_BRANCHES[idx % 12] + '日';
+        }
+
+        function hourGanzhi(d) {
+            const h = d.getHours();
+            return GANZHI_BRANCHES[h === 23 ? 0 : Math.floor((h + 1) / 2)] + '时';
+        }
+
+        function updateTimeDisplay() {
+            const now = new Date();
+            const y = now.getFullYear();
+            const m = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            const hh = String(now.getHours()).padStart(2, '0');
+            const mm = String(now.getMinutes()).padStart(2, '0');
+            const ss = String(now.getSeconds()).padStart(2, '0');
+            document.getElementById('tmDate').textContent = `${y}/${m}/${day}`;
+            document.getElementById('tmDow').textContent = DOW_EN[now.getDay()];
+            document.getElementById('tmClock').textContent = `${hh}:${mm}:${ss}`;
+            const yStemIdx = ((y - 2024) % 10 + 10) % 10;
+            document.getElementById('ttYear').textContent = yearGanzhi(now);
+            document.getElementById('ttMonth').textContent = monthGanzhi(now, yStemIdx);
+            document.getElementById('ttDay').textContent = dayGanzhi(now);
+            document.getElementById('ttHour').textContent = hourGanzhi(now);
+        }
+
+        updateTimeDisplay();
+        setInterval(() => { if (!timeLocked) updateTimeDisplay(); }, 1000);
+        // ─────────────────────────────────────────────────────
 
     </script>
 

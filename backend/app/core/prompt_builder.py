@@ -34,6 +34,16 @@ def build_interpretation_prompt(ctx: dict) -> tuple[str, str]:
         else "动爻：无"
     )
 
+    # Time context block
+    time_parts = []
+    if ctx.get("month_branch"):
+        time_parts.append(f"月建：{ctx['month_branch']}（当月地支）")
+    if ctx.get("day_stem_branch"):
+        time_parts.append(f"日辰：{ctx['day_stem_branch']}")
+    if ctx.get("void_branches"):
+        time_parts.append(f"旬空：{'、'.join(ctx['void_branches'])}")
+    time_note = "\n".join(time_parts)
+
     user = (
         f"问题：{ctx['question']}{timeframe_note}\n"
         f"关注方向：{ctx['category']}\n\n"
@@ -41,7 +51,8 @@ def build_interpretation_prompt(ctx: dict) -> tuple[str, str]:
         f"{changed_note}\n"
         f"{changing_note}\n\n"
         f"各爻情况：\n{line_desc}\n\n"
-        "请给出完整的六爻白话解读。"
+        + (f"起卦时间背景：\n{time_note}\n\n" if time_note else "")
+        + "请给出完整的六爻白话解读。"
     )
 
     return system, user
