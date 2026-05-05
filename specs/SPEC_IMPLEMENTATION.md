@@ -58,7 +58,7 @@
 | Task 4A — Implement core hexagram RuleEngine | CoinMapper（硬币→爻）、HexagramGen（爻→本卦 / 变卦）、动爻检测，含单元测试 | Task 3 |
 | Task 4B — Implement NaJia and time context RuleEngine | NaJiaMapper（hexagram_id + line_number → branch / element）、TimeContextEngine（cast_datetime + timezone → 月建 / 日辰 / 旬空）、TimeStateCalculator（运行时派生 LineTimeState，不落库） | Task 3 |
 | Task 5 — DivinationService 与起卦接口 | POST /divinations、POST /divinations/{id}/lines（首次抛币时记录 cast_datetime + timezone，服务端派生时间字段存库）、GET /divinations/{id}/result | Task 2、Task 4A、Task 4B |
-| Task 6 — 解读共享能力实现（ContextLoader / PromptBuilder / LLMProvider） | ContextLoader（HexagramContext 含时间上下文 / ChatContext）、PromptBuilder（依赖 Task 4A/4B 输出结构）、LLMProvider（Claude 主 + DeepSeek 备用） | Task 2、Task 3、Task 4A、Task 4B |
+| Task 6 — 解读共享能力实现（ContextLoader / PromptBuilder / LLMProvider） | ContextLoader（HexagramContext 含时间上下文 / ChatContext）、PromptBuilder（依赖 Task 4A/4B 输出结构）、LLMProvider（DeepSeek 主 + Claude 备用） | Task 2、Task 3、Task 4A、Task 4B |
 | Task 7 — InterpretationService 与解读接口 | POST /divinations/{id}/interpret；LLM 不可用时返回错误 | Task 5、Task 6 |
 | Task 8 — FollowupService 与追问接口 | ConversationManager（历史存取、20 轮计数）、POST /divinations/{id}/followup、GET /divinations/{id}/followup | Task 5、Task 6 |
 
@@ -235,7 +235,7 @@
 
 **Dependencies:** Task 2, Task 3, Task 4
 
-**What:** 实现三个共享组件。`ContextLoader` 按调用方加载上下文：`HexagramContext`（供 InterpretationService 使用，含卦象元数据）、`ChatContext`（供 FollowupService 使用，含卦象 + 对话历史）。`PromptBuilder` 将 context 组装为 LLM system prompt + user message，prompt 中需包含本卦、变卦、动爻信息。`LLMProvider` 封装 Claude（主）和 DeepSeek（备用），Claude 失败时自动切换。
+**What:** 实现三个共享组件。`ContextLoader` 按调用方加载上下文：`HexagramContext`（供 InterpretationService 使用，含卦象元数据）、`ChatContext`（供 FollowupService 使用，含卦象 + 对话历史）。`PromptBuilder` 将 context 组装为 LLM system prompt + user message，prompt 中需包含本卦、变卦、动爻信息。`LLMProvider` 封装 DeepSeek（主）和 Claude（备用），DeepSeek 失败时自动切换。
 
 **Files:**
 - `backend/app/core/context_loader.py`
@@ -248,7 +248,7 @@
 - `HexagramContext`：包含 `base_hexagram`、`changed_hexagram`、`changing_lines` 及卦象元数据
 - `ChatContext`：包含 `HexagramContext` 内容 + 对话历史列表
 - `PromptBuilder`：system prompt 包含卦名和动爻信息，user message 非空
-- `LLMProvider`：Claude 正常时返回响应；Claude 抛出异常时切换 DeepSeek 并返回响应
+- `LLMProvider`：DeepSeek 正常时返回响应；DeepSeek 抛出异常时切换 Claude 并返回响应
 
 **Verify:**
 - `pytest backend/tests/test_context_loader.py backend/tests/test_prompt_builder.py` 全部通过
@@ -489,5 +489,6 @@
 
 ## 更新日志
 
+- **v1.2** (2026-05-05)：T6 LLMProvider 调用顺序调整为 DeepSeek 主 + Claude 备用
 - **v1.1** (2026-04-30)：响应 SPEC_REQUIREMENT v1.5 / SPEC_DESIGN v1.2；T4 拆为 T4A（核心卦象）和 T4B（纳甲 + 时间上下文）；T2 DDL 新增时间字段与纳甲字段（LineTimeState 不落库）；T3 纳甲数据补充；T5 DivinationService 新增 cast_datetime/timezone 捕获；T12 起卦页新增时间字段采集
 - **v1.0** (2026-04-26)：初版 Implementation Spec，确定约束条件与任务目录（A/B/C/D 四组，共 15 个 MVP Task + 1 个 P1 Task）
