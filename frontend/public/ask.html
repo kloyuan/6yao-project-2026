@@ -124,6 +124,13 @@
             gap: 10px;
         }
 
+        @media (max-width: 480px) {
+            .tag-grid {
+                grid-template-columns: repeat(3, 1fr);
+                gap: 12px;
+            }
+        }
+
         .glass-tag {
             background: var(--glass-bg);
             border: 1px solid var(--glass-border);
@@ -143,11 +150,9 @@
         }
 
         .action-container {
-            margin-top: auto;
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 12px;
             padding-bottom: max(20px, env(safe-area-inset-bottom));
         }
 
@@ -182,11 +187,16 @@
             font-size: 13px;
             color: var(--seal);
             opacity: 0;
-            transition: opacity 0.3s;
+            max-height: 0;
+            overflow: hidden;
+            margin-bottom: 0;
+            transition: opacity 0.3s, max-height 0.3s, margin-bottom 0.3s;
         }
 
         .error-msg.visible {
             opacity: 1;
+            max-height: 3em;
+            margin-bottom: 12px;
         }
 
         .header {
