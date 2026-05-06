@@ -411,8 +411,21 @@
             transform: scale(0.98);
         }
 
-        .cast-btn.hidden {
+        .cast-btn {
             display: none;
+        }
+
+        .tap-hint {
+            font-family: var(--font-serif);
+            font-size: 12px;
+            letter-spacing: 0.3em;
+            color: var(--ink);
+            opacity: 0.3;
+            order: 3;
+            text-align: center;
+            transition: opacity 0.4s ease;
+            pointer-events: none;
+            user-select: none;
         }
 
         .result-slot {
@@ -614,6 +627,95 @@
             .time-trad { font-size: 11px; }
         }
 
+        /* ── Loading overlay ─────────────────────────────── */
+        .loading-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 200;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(241, 239, 233, 0.97);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.4s ease;
+        }
+
+        .loading-overlay.visible {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .loading-inner {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 28px;
+        }
+
+        .l-coin-wrap {
+            perspective: 400px;
+        }
+
+        .l-coin-body {
+            width: 40px;
+            height: 40px;
+            position: relative;
+            transform-style: preserve-3d;
+            animation: loadingCoinSpin 2s linear infinite;
+        }
+
+        .l-coin {
+            position: absolute;
+            inset: 0;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            backface-visibility: hidden;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        }
+
+        .l-front {
+            background: #6F7A7C;
+            border: 2px solid #6F7A7C;
+        }
+        .l-front svg path { fill: #f0eeea; }
+
+        .l-back {
+            background: #e2dfd8;
+            border: 2px solid #9aa0a2;
+            transform: rotateY(180deg);
+        }
+        .l-back svg path { fill: #6F7A7C; }
+
+        @keyframes loadingCoinSpin {
+            from { transform: rotateY(0deg); }
+            to   { transform: rotateY(360deg); }
+        }
+
+        .loading-text-wrap {
+            font-family: var(--font-serif);
+            font-size: 13px;
+            letter-spacing: 0.35em;
+            color: var(--ink);
+            opacity: 0.6;
+            display: flex;
+            align-items: center;
+            min-height: 1.6em;
+        }
+
+        .loading-cursor {
+            animation: cursorBlink 0.75s step-end infinite;
+        }
+
+        @keyframes cursorBlink {
+            0%, 100% { opacity: 1; }
+            50%       { opacity: 0; }
+        }
+
     </style>
 </head>
 <body vid="6">
@@ -657,6 +759,24 @@
         </div>
     </div>
 
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-inner">
+            <div class="l-coin-wrap">
+                <div class="l-coin-body">
+                    <div class="l-coin l-front">
+                        <svg viewBox="0 0 24 24" width="28" height="28"><path d="M12 5.5 C12.5 9.5 14.5 11.5 18.5 12 C14.5 12.5 12.5 14.5 12 18.5 C11.5 14.5 9.5 12.5 5.5 12 C9.5 11.5 11.5 9.5 12 5.5 Z"/></svg>
+                    </div>
+                    <div class="l-coin l-back">
+                        <svg viewBox="0 0 24 24" width="28" height="28"><path d="M12 5.5 C12.5 9.5 14.5 11.5 18.5 12 C14.5 12.5 12.5 14.5 12 18.5 C11.5 14.5 9.5 12.5 5.5 12 C9.5 11.5 11.5 9.5 12 5.5 Z"/></svg>
+                    </div>
+                </div>
+            </div>
+            <div class="loading-text-wrap">
+                <span id="loadingText"></span><span class="loading-cursor">|</span>
+            </div>
+        </div>
+    </div>
+
 <main class="stage" vid="25">
         <header class="header">
             <div class="header-col"><p>The Method</p></div>
@@ -690,43 +810,9 @@
                 </div>
             </div>
             
-            <div class="coins-container" id="coinsContainer" vid="37">
-                
-                <div class="coin-wrapper" id="coin1" vid="38">
-                    <div class="coin coin-front" vid="39">
-                        <div class="coin-ring" vid="40"></div>
-                        <svg viewBox="0 0 24 24" vid="41"><path d="M12 5.5 C12.5 9.5 14.5 11.5 18.5 12 C14.5 12.5 12.5 14.5 12 18.5 C11.5 14.5 9.5 12.5 5.5 12 C9.5 11.5 11.5 9.5 12 5.5 Z" vid="42"></path></svg>
-                    </div>
-                    <div class="coin coin-back" vid="43">
-                        <div class="coin-ring" vid="44"></div>
-                        <svg viewBox="0 0 24 24" vid="45"><path d="M12 5.5 C12.5 9.5 14.5 11.5 18.5 12 C14.5 12.5 12.5 14.5 12 18.5 C11.5 14.5 9.5 12.5 5.5 12 C9.5 11.5 11.5 9.5 12 5.5 Z" vid="46"></path></svg>
-                    </div>
-                </div>
-                
-                <div class="coin-wrapper" id="coin2" vid="47">
-                    <div class="coin coin-front" vid="48">
-                        <div class="coin-ring" vid="49"></div>
-                        <svg viewBox="0 0 24 24" vid="50"><path d="M12 5.5 C12.5 9.5 14.5 11.5 18.5 12 C14.5 12.5 12.5 14.5 12 18.5 C11.5 14.5 9.5 12.5 5.5 12 C9.5 11.5 11.5 9.5 12 5.5 Z" vid="51"></path></svg>
-                    </div>
-                    <div class="coin coin-back" vid="52">
-                        <div class="coin-ring" vid="53"></div>
-                        <svg viewBox="0 0 24 24" vid="54"><path d="M12 5.5 C12.5 9.5 14.5 11.5 18.5 12 C14.5 12.5 12.5 14.5 12 18.5 C11.5 14.5 9.5 12.5 5.5 12 C9.5 11.5 11.5 9.5 12 5.5 Z" vid="55"></path></svg>
-                    </div>
-                </div>
-                
-                <div class="coin-wrapper" id="coin3" vid="56">
-                    <div class="coin coin-front" vid="57">
-                        <div class="coin-ring" vid="58"></div>
-                        <svg viewBox="0 0 24 24" vid="59"><path d="M12 5.5 C12.5 9.5 14.5 11.5 18.5 12 C14.5 12.5 12.5 14.5 12 18.5 C11.5 14.5 9.5 12.5 5.5 12 C9.5 11.5 11.5 9.5 12 5.5 Z" vid="60"></path></svg>
-                    </div>
-                    <div class="coin coin-back" vid="61">
-                        <div class="coin-ring" vid="62"></div>
-                        <svg viewBox="0 0 24 24" vid="63"><path d="M12 5.5 C12.5 9.5 14.5 11.5 18.5 12 C14.5 12.5 12.5 14.5 12 18.5 C11.5 14.5 9.5 12.5 5.5 12 C9.5 11.5 11.5 9.5 12 5.5 Z" vid="64"></path></svg>
-                    </div>
-                </div>
-            </div>
 
             <button class="cast-btn" id="actionBtn" vid="65">抛掷</button>
+            <div class="tap-hint" id="tapHint">轻触屏幕抛掷</div>
         </div>
         </div>
         
@@ -831,11 +917,6 @@
         const yaoLabels = ['初爻', '二爻', '三爻', '四爻', '五爻', '上爻'];
         
         const actionBtn = document.getElementById('actionBtn');
-        const coinWrappers = [
-            document.getElementById('coin1'),
-            document.getElementById('coin2'),
-            document.getElementById('coin3')
-        ];
         const progressText = document.getElementById('progressText');
         const currentResultArea = document.getElementById('currentResult');
         const resultNameEl = document.getElementById('resultName');
@@ -844,18 +925,87 @@
         const completionMsg = document.getElementById('completionMsg');
 
         
-        coinWrappers.forEach(w => w.style.transform = 'rotateY(0deg)');
+        function showLoadingAndNavigate(url) {
+            const overlay = document.getElementById('loadingOverlay');
+            const textEl  = document.getElementById('loadingText');
+            overlay.classList.add('visible');
+            textEl.textContent = '';
+            const chars = '正在读取卦象';
+            let i = 0;
+            const timer = setInterval(() => {
+                if (i < chars.length) {
+                    textEl.textContent += chars[i++];
+                } else {
+                    clearInterval(timer);
+                    setTimeout(() => navigate(url), 600);
+                }
+            }, 200);
+        }
 
-        actionBtn.addEventListener('click', () => {
+        const tapHint = document.getElementById('tapHint');
+        let lastTapX = window.innerWidth / 2;
+        let lastTapY = window.innerHeight / 2;
+
+        document.querySelector('.stage').addEventListener('click', (e) => {
+            if (e.target.closest('.header')) return;
             if (isCasting) return;
-            
+
+            lastTapX = e.clientX;
+            lastTapY = e.clientY;
+
             if (currentYao >= totalYao) {
-                navigate(divinationId ? `/result/${divinationId}` : '/');
+                showLoadingAndNavigate(divinationId ? `/result/${divinationId}` : '/');
                 return;
             }
 
             castCoins();
         });
+
+        function spawnCoins(ox, oy, flips) {
+            const spread = [
+                { tx: -78, ty: -115, rot: -14 },
+                { tx:   4, ty: -148, rot:   3 },
+                { tx:  80, ty: -112, rot:  17 },
+            ];
+            flips.forEach((flip, i) => {
+                const isBack = flip === 3;
+                const { tx, ty, rot } = spread[i];
+
+                const wrap = document.createElement('div');
+                wrap.style.cssText = `position:fixed;left:${ox-20}px;top:${oy-20}px;width:40px;height:40px;z-index:500;pointer-events:none;opacity:0;transition:transform 0.85s cubic-bezier(0.22,1,0.36,1),opacity 0.2s ease;`;
+
+                const body = document.createElement('div');
+                body.style.cssText = `width:40px;height:40px;position:relative;transform-style:preserve-3d;transition:transform 0.85s cubic-bezier(0.22,1,0.36,1);`;
+
+                const starSvg = `<svg viewBox="0 0 24 24" width="28" height="28"><path fill="rgba(44,58,79,0.6)" d="M12 5.5 C12.5 9.5 14.5 11.5 18.5 12 C14.5 12.5 12.5 14.5 12 18.5 C11.5 14.5 9.5 12.5 5.5 12 C9.5 11.5 11.5 9.5 12 5.5 Z"/></svg>`;
+                const sunSvg  = `<svg viewBox="0 0 24 24" width="28" height="28"><circle cx="12" cy="12" r="3.2" fill="rgba(44,58,79,0.55)"/><g stroke="rgba(44,58,79,0.55)" stroke-width="1.4" stroke-linecap="round"><line x1="12" y1="3.5" x2="12" y2="6.5"/><line x1="12" y1="17.5" x2="12" y2="20.5"/><line x1="3.5" y1="12" x2="6.5" y2="12"/><line x1="17.5" y1="12" x2="20.5" y2="12"/><line x1="5.9" y1="5.9" x2="8.0" y2="8.0"/><line x1="16.0" y1="16.0" x2="18.1" y2="18.1"/><line x1="5.9" y1="18.1" x2="8.0" y2="16.0"/><line x1="16.0" y1="8.0" x2="18.1" y2="5.9"/></g></svg>`;
+
+                const front = document.createElement('div');
+                front.style.cssText = `position:absolute;inset:0;border-radius:50%;backface-visibility:hidden;background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.5);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(0,0,0,0.07),inset 0 1px 0 rgba(255,255,255,0.5);`;
+                front.innerHTML = starSvg;
+
+                const back = document.createElement('div');
+                back.style.cssText = `position:absolute;inset:0;border-radius:50%;backface-visibility:hidden;background:rgba(255,255,255,0.38);border:1px solid rgba(255,255,255,0.65);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);display:flex;align-items:center;justify-content:center;transform:rotateY(180deg);box-shadow:0 4px 16px rgba(0,0,0,0.05),inset 0 1px 0 rgba(255,255,255,0.7);`;
+                back.innerHTML = sunSvg;
+
+                body.appendChild(front);
+                body.appendChild(back);
+                wrap.appendChild(body);
+                document.body.appendChild(wrap);
+
+                setTimeout(() => {
+                    wrap.style.opacity = '1';
+                    wrap.style.transform = `translate(${tx}px,${ty}px) rotate(${rot}deg)`;
+                    body.style.transform = `rotateY(${isBack ? 180 + 720 : 720}deg)`;
+                }, i * 55);
+
+                setTimeout(() => {
+                    wrap.style.transition = 'opacity 0.5s ease';
+                    wrap.style.opacity = '0';
+                    setTimeout(() => wrap.remove(), 500);
+                }, i * 55 + 1100);
+            });
+        }
 
         function castCoins() {
             if (currentYao === 0 && !castDatetime) {
@@ -863,63 +1013,32 @@
                 timeLocked = true;
             }
             isCasting = true;
-            actionBtn.style.pointerEvents = 'none';
-            actionBtn.style.opacity = '0.5';
+            tapHint.style.opacity = '0.1';
             currentResultArea.classList.remove('visible');
 
-            
-            coinWrappers.forEach((wrapper, index) => {
-                
-                setTimeout(() => {
-                    wrapper.classList.remove('spinning');
-                    
-                    void wrapper.offsetWidth;
-                    wrapper.classList.add('spinning');
-                }, index * 100);
-            });
+            const flips = [
+                Math.random() > 0.5 ? 2 : 3,
+                Math.random() > 0.5 ? 2 : 3,
+                Math.random() > 0.5 ? 2 : 3,
+            ];
+            const sum = flips.reduce((a, b) => a + b, 0);
 
-            
-            setTimeout(() => {
-                
-                
-                
-                
-                const flips = [
-                    Math.random() > 0.5 ? 2 : 3,
-                    Math.random() > 0.5 ? 2 : 3,
-                    Math.random() > 0.5 ? 2 : 3
-                ];
-
-                const sum = flips.reduce((a, b) => a + b, 0);
-
-                // Submit line to backend (non-blocking; animation continues regardless)
-                if (divinationId) {
-                    const linePayload = { line_number: currentYao + 1, coin_values: flips };
-                    if (currentYao === 0 && castDatetime) {
-                        linePayload.cast_datetime = castDatetime;
-                        linePayload.timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-                    }
-                    fetch(`${API_URL}/divinations/${divinationId}/lines`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(linePayload),
-                    }).catch(() => {});
+            if (divinationId) {
+                const linePayload = { line_number: currentYao + 1, coin_values: flips };
+                if (currentYao === 0 && castDatetime) {
+                    linePayload.cast_datetime = castDatetime;
+                    linePayload.timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
                 }
-                
-                
-                coinWrappers.forEach((wrapper, i) => {
-                    
-                    
-                    const targetRotation = flips[i] === 3 ? 180 + 720 : 0 + 720;
-                    wrapper.style.transform = `rotateY(${targetRotation}deg)`;
-                });
+                fetch(`${API_URL}/divinations/${divinationId}/lines`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(linePayload),
+                }).catch(() => {});
+            }
 
-                
-                setTimeout(() => {
-                    handleResult(sum);
-                }, 500);
+            spawnCoins(lastTapX, lastTapY, flips);
 
-            }, 1000); 
+            setTimeout(() => handleResult(sum), 1000);
         }
 
         function handleResult(sum) {
@@ -956,21 +1075,13 @@
                 }, 1000);
                 
                 setTimeout(() => {
-                    coinWrappers.forEach(w => {
-                        w.classList.remove('spinning');
-                        
-                        const currentY = w.style.transform.includes('180') ? 180 : 0;
-                        w.style.transform = `rotateY(${currentY}deg)`;
-                    });
-
-            if (currentYao < totalYao) {
-                progressText.textContent = `第 ${currentYao + 1} 爻 / 共 6 爻`;
-                actionBtn.style.pointerEvents = 'auto';
-                actionBtn.style.opacity = '1';
-                isCasting = false;
-            } else {
-                handleCompletion(resultData);
-            }
+                    if (currentYao < totalYao) {
+                        progressText.textContent = `第 ${currentYao + 1} 爻 / 共 6 爻`;
+                        tapHint.style.opacity = '0.3';
+                        isCasting = false;
+                    } else {
+                        handleCompletion(resultData);
+                    }
                 }, 1500);
             }, 500);
         }
@@ -1011,14 +1122,9 @@
         function handleCompletion(finalResultData) {
             progressText.textContent = "起卦完成";
             currentResultArea.classList.remove('visible');
-
-
             completionMsg.classList.add('visible');
-
-
-            actionBtn.textContent = '查看结果';
-            actionBtn.style.pointerEvents = 'auto';
-            actionBtn.style.opacity = '1';
+            tapHint.textContent = '轻触查看结果';
+            tapHint.style.opacity = '0.5';
             isCasting = false;
         }
 
