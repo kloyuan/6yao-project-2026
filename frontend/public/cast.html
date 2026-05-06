@@ -33,7 +33,6 @@
             --edge-spacing-desktop: var(--space-2xl);
             --cast-area-width: 280px;
             --hexagram-area-width: 320px;
-            --coin-btn-gap: 26px;
             --content-shift-y: -20px;
         }
 
@@ -121,7 +120,8 @@
             height: 8px;
             border: 0.5px solid var(--ink);
             opacity: 0.3;
-            z-index: 10;
+            z-index: 20;
+            pointer-events: none;
         }
         .top-left { top: 20px; left: 20px; border-right: 0; border-bottom: 0; }
         .top-right { top: 20px; right: 20px; border-left: 0; border-bottom: 0; }
@@ -138,41 +138,39 @@
             position: relative;
             width: 100%;
             height: 100vh;
+            height: 100dvh;
             box-sizing: border-box;
             display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 0 var(--edge-spacing-desktop);
-            z-index: 20;
+            flex-direction: column;
+            overflow-y: auto;
+            z-index: 10;
         }
 
         .main-layout {
+            flex: 1;
             display: flex;
             flex-direction: row;
             align-items: center;
             justify-content: center;
             gap: var(--panel-gap-desktop);
-            transform: translateY(var(--content-shift-y));
+            padding: 0 var(--edge-spacing-desktop);
         }
 
         
         .header {
-            position: fixed;
-            top: 32px;
-            left: 32px;
-            right: 32px;
+            position: sticky;
+            top: 0;
+            z-index: 30;
             display: flex;
             justify-content: space-between;
             align-items: flex-start;
+            padding: 32px 32px 14px;
+            background: linear-gradient(to bottom, rgba(241,239,233,0.9) 70%, transparent);
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
             font-size: 10px;
             letter-spacing: 0.2em;
             text-transform: uppercase;
-            z-index: 100;
-            pointer-events: none;
-        }
-
-        .header > * {
-            pointer-events: auto;
         }
 
         .header-col {
@@ -247,26 +245,25 @@
         
         /* Mobile Layout - Stacked */
         @media (max-width: 768px) {
-            .header {
-                top: 20px;
-                left: 16px;
-                right: 16px;
-            }
-
             .stage {
                 height: 100vh;
-                padding: 0 var(--space-sm);
-                align-items: center;
-                justify-content: center;
+                height: 100dvh;
+                padding: 0 0 max(24px, env(safe-area-inset-bottom));
+                align-items: stretch;
+                justify-content: flex-start;
+                overflow-y: auto;
+                -webkit-overflow-scrolling: touch;
             }
-            
+
             .main-layout {
                 width: 100%;
                 flex-direction: column;
                 align-items: stretch;
                 justify-content: center;
                 gap: var(--panel-gap-mobile);
-                transform: translateY(-12px);
+                padding: 0 var(--space-sm);
+                transform: none;
+                min-height: auto;
             }
             
             .result-slot {
@@ -652,16 +649,6 @@
     <div class="corner-mark bottom-right" vid="20"></div>
 
     
-        <header class="header">
-            <div class="header-col"><p>The Method</p></div>
-            <div class="header-col header-col-center"><p>起卦</p></div>
-            <div class="header-col header-col-right">
-                <p>EN/中文</p>
-                <p>∞</p>
-                <p class="header-reset" id="resetBtn">重置</p>
-            </div>
-        </header>
-
     <div class="time-strip" id="timeStrip">
         <div class="time-row time-modern">
             <span id="tmDate"></span>
@@ -677,6 +664,16 @@
     </div>
 
 <main class="stage" vid="25">
+        <header class="header">
+            <div class="header-col"><p>The Method</p></div>
+            <div class="header-col header-col-center"><p>起卦</p></div>
+            <div class="header-col header-col-right">
+                <p>EN/中文</p>
+                <p>∞</p>
+                <p class="header-reset" id="resetBtn">重置</p>
+            </div>
+        </header>
+
         <div class="main-layout" vid="26">
 
         <div class="left-panel" vid="27">
@@ -1034,7 +1031,7 @@
         // ── Traditional time display ──────────────────────────
         const GANZHI_STEMS = ['甲','乙','丙','丁','戊','己','庚','辛','壬','癸'];
         const GANZHI_BRANCHES = ['子','丑','寅','卯','辰','巳','午','未','申','酉','戌','亥'];
-        const DOW_EN = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+        const DOW_EN = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
 
         function yearGanzhi(d) {
             const y = d.getFullYear();

@@ -42,7 +42,8 @@
             width: 8px; height: 8px;
             border: 0.5px solid var(--ink);
             opacity: 0.3;
-            z-index: 10;
+            z-index: 20;
+            pointer-events: none;
         }
         .top-left     { top: 20px;    left: 20px;  border-right: 0; border-bottom: 0; }
         .top-right    { top: 20px;    right: 20px; border-left: 0;  border-bottom: 0; }
@@ -53,9 +54,10 @@
             position: relative;
             width: 100vw;
             height: 100vh;
+            height: 100dvh;
             display: flex;
             flex-direction: column;
-            padding: 40px 24px;
+            padding: 0 0 20px;
             z-index: 10;
             overflow-y: auto;
             scroll-behavior: smooth;
@@ -68,17 +70,17 @@
             border: 1px solid var(--glass-border);
             border-radius: var(--radius-main);
             padding: 20px;
-            margin-bottom: 20px;
+            margin: 0 20px 20px;
             box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.05);
         }
 
         .section-title {
             font-family: var(--font-serif);
-            font-size: 14px;
+            font-size: 11px;
             color: var(--ink);
-            opacity: 0.8;
+            opacity: 0.55;
             margin-bottom: 12px;
-            letter-spacing: 0.1em;
+            letter-spacing: 0.16em;
             display: flex;
             align-items: center;
         }
@@ -146,7 +148,7 @@
             flex-direction: column;
             align-items: center;
             gap: 12px;
-            padding-bottom: 20px;
+            padding-bottom: max(20px, env(safe-area-inset-bottom));
         }
 
         .btn-start {
@@ -188,17 +190,65 @@
         }
 
         .header {
+            position: sticky;
+            top: 0;
+            z-index: 30;
             display: flex;
-            justify-content: center;
-            align-items: center;
-            margin-bottom: 30px;
+            justify-content: space-between;
+            align-items: flex-start;
+            padding: 32px 32px 14px;
+            margin-bottom: 16px;
+            background: linear-gradient(to bottom, rgba(241,239,233,0.9) 70%, transparent);
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
+            font-size: 10px;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+        }
+
+        .header-col {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
             opacity: 0.6;
         }
 
-        .header-title {
+        .header-col-center {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            text-align: center;
             font-family: var(--font-serif);
             font-size: 12px;
             letter-spacing: 0.2em;
+            text-transform: none;
+        }
+
+        .header-col-right {
+            text-align: right;
+        }
+
+        .header-reset { cursor: pointer; }
+
+        /* ── Mobile adaptations ───────────────────────── */
+        @media (max-width: 480px) {
+            .glass-tag {
+                padding: 13px 0;
+                font-size: 12px;
+                min-height: 44px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+
+            .question-area {
+                height: 90px;
+            }
+
+            .glass-panel {
+                padding: 16px;
+                margin: 0 20px 14px;
+            }
         }
     </style>
 </head>
@@ -212,7 +262,12 @@
     <main class="stage">
 
         <div class="header">
-            <span class="header-title">起心动念</span>
+            <div class="header-col"><p>The Method</p></div>
+            <div class="header-col header-col-center"><p>起心动念</p></div>
+            <div class="header-col header-col-right">
+                <p>EN/中文</p>
+                <p>∞</p>
+            </div>
         </div>
 
         <div class="glass-panel">

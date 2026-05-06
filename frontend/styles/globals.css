@@ -165,7 +165,7 @@ html, body {
   flex-direction: column;
   justify-content: space-between;
   align-items: center;
-  padding: 40px 32px;
+  padding: 32px 32px;
   z-index: 10;
 }
 
