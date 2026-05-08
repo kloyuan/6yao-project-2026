@@ -717,25 +717,27 @@ async function init() {
     return;
   }
 
-  const [rr, ir] = await Promise.allSettled([
-    fetch(`${API}/divinations/${DID}/result`),
-    fetch(`${API}/divinations/${DID}/interpret`, { method: 'POST' }),
-  ]);
+  const rr = await fetch(`${API}/divinations/${DID}/result`).catch(() => null);
 
-  if (rr.status !== 'fulfilled' || !rr.value.ok) {
+  if (!rr || !rr.ok) {
     document.getElementById('root').innerHTML =
       `<div class="err-state">无法加载卦象结果，请刷新重试。</div>`;
     return;
   }
 
-  resultData = await rr.value.json();
+  resultData = await rr.json();
   mount();
 
-  if (ir.status === 'fulfilled' && ir.value.ok) {
-    interpData = await ir.value.json();
-  } else {
-    interpData = { error: true };
+  interpData = { error: true };
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const ir = await fetch(`${API}/divinations/${DID}/interpret`, { method: 'POST' }).catch(() => null);
+    if (ir && ir.ok) {
+      const data = await ir.json();
+      if (!data.error) { interpData = data; break; }
+    }
+    if (attempt < 2) await new Promise(r => setTimeout(r, 2000));
   }
+
   interpReady = true;
   patchInterp();
   bindChat();
