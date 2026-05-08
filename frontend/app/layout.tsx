@@ -1,6 +1,5 @@
 import type { Metadata } from 'next'
 import '../styles/globals.css'
-import Footer from '@/components/Footer'
 
 export const metadata: Metadata = {
   title: '六爻在线起卦',
@@ -18,9 +17,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           rel="stylesheet"
         />
       </head>
-      <body className="min-h-screen flex flex-col bg-stone-950 text-stone-100">
-        <main className="flex-1">{children}</main>
-        <Footer />
+      <body className="min-h-screen bg-[#F1EFE9]">
+        {children}
       </body>
     </html>
   )
